@@ -1,72 +1,72 @@
-# Travel Local Platform 
+# 🌏 Globetrot - Nền tảng Du lịch Bản địa (Travel Local Platform)
 
-Ứng dụng web + mobile cho phép người dùng đặt homestay và trải nghiệm du lịch bản địa. 
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 
-## 🚀 Features 
+**Globetrot** là nền tảng du lịch hiện đại, tập trung vào việc kết nối người dùng với các homestay độc đáo và những trải nghiệm văn hóa bản địa chân thực nhất tại Việt Nam. Ứng dụng được xây dựng với triết lý thiết kế **"Soft Precision"** - kết hợp giữa sự chính xác kỹ thuật và cảm giác mềm mại, tinh tế.
 
-* Đặt homestay theo địa điểm 
-* Khám phá trải nghiệm bản địa (ẩm thực, văn hóa, tour) 
-* Đánh giá & review * Quản lý booking 
+---
 
-## 🧱 Tech Stack 
-* Web: React / Next.js 
-* Mobile: Flutter / React Native 
-* Backend: 
-* Database: 
+## ✨ Tính năng nổi bật
 
-## 📂 Project Structure
+### 🏠 Phân hệ Người dùng
+*   **Khám phá Thông minh**: Tìm kiếm homestay và trải nghiệm theo địa điểm, sở thích.
+*   **Trải nghiệm Chi tiết**: Xem thông tin chi tiết, hình ảnh chất lượng cao và đánh giá từ cộng đồng.
+*   **Hồ sơ Cá nhân (Profile)**: Quản lý lịch sử đặt chỗ, lưu danh sách yêu thích (Wishlist) và bài viết cá nhân.
+*   **Dịch thuật Tức thời (Translate)**: Hỗ trợ giao tiếp đa ngôn ngữ giữa khách du lịch và chủ nhà.
+*   **Cộng đồng (Community)**: Chia sẻ khoảnh khắc và kinh nghiệm du lịch.
 
-Dự án được tổ chức theo mô hình **monorepo**, cho phép quản lý đồng thời web, mobile và backend trong cùng một repository.
+### 🛡️ Phân hệ Quản trị (Admin Dashboard)
+*   **Tổng quan Hệ thống**: Thống kê doanh thu, số lượng booking và người dùng mới theo thời gian thực.
+*   **Quản lý Nội dung**: Kiểm soát danh sách Homestay, Trải nghiệm và Bài viết trên toàn hệ thống.
+*   **Theo dõi Hạ tầng**: Giám sát trạng thái máy chủ, bảo mật và lưu trữ.
+
+---
+
+## 🎨 Thiết kế: Soft Precision
+Dự án áp dụng ngôn ngữ thiết kế **Soft Precision** với các đặc điểm:
+*   **Tonal Layering**: Phân lớp màu sắc tinh tế thay vì dùng đường kẻ cứng.
+*   **Glassmorphism**: Hiệu ứng kính mờ cho các thành phần nổi bật.
+*   **Rounded Aesthetics**: Sử dụng các góc bo tròn lớn (`rounded-3xl`) tạo cảm giác thân thiện.
+*   **Typography**: Sử dụng font *Plus Jakarta Sans* hiện đại và sang trọng.
+
+---
+
+## 🛠️ Stack Công nghệ
+
+- **Frontend**: React 18+, Vite, TailwindCSS 4.0
+- **Routing**: React Router DOM v6
+- **Icons**: Google Material Symbols (Outlined & Rounded)
+- **State Management**: React Hooks (Zustand/Context API planned)
+- **Deployment**: GitHub Pages / Vercel (Planned)
+
+---
+
+## 📂 Cấu trúc Thư mục
 
 ```
 travel-local-platform/
-│
-├── apps/                # Các ứng dụng phía client
-│   ├── web/             # Ứng dụng web (React / Next.js)
-│   └── mobile/          # Ứng dụng mobile (Flutter / React Native)
-│ 
-├── services/            # Các service backend
-│   ├── api/             # REST API / GraphQL server
-│   └── auth/            # (Optional) Service xác thực (JWT, OAuth...)
-│
-├── packages/            # Shared packages dùng chung
-│   ├── ui/              # UI components (buttons, inputs...)
-│   └── utils/           # Helper functions, constants
-│
-├── docs/                # Tài liệu đồ án (ERD, API docs, design...)
-├── .env.example         # Biến môi trường mẫu
-├── README.md            # Tổng quan dự án
-└── package.json         # Cấu hình workspace / dependencies
+├── frontend/             # Mã nguồn ứng dụng web (React)
+│   ├── src/
+│   │   ├── components/   # Các UI Component dùng chung (Navbar, Footer...)
+│   │   ├── pages/        # Các trang giao diện (Home, Profile, Admin...)
+│   │   └── assets/       # Tài nguyên hình ảnh, style
+├── docs/                 # Tài liệu đồ án (ERD, API docs, design...)
+└── README.md             # Tổng quan dự án
 ```
 
-### 🔎 Giải thích
+---
 
-* **apps/**: Chứa các ứng dụng phía người dùng (frontend)
+## 👥 Đội ngũ Phát triển (Team)
 
-  * `web`: Giao diện web cho người dùng và quản trị
-  * `mobile`: Ứng dụng di động
+*   **Nguyễn Văn An** - *Mã SV: 23010163*
+*   **Lê Phạm Thành Đạt** - *Mã SV: 23010541*
 
-* **services/**: Xử lý logic backend, cung cấp API cho frontend
+---
 
-  * `api`: Xử lý business logic, database
-  * `auth`: Quản lý xác thực và phân quyền (có thể tách riêng hoặc gộp vào api)
+## 📝 Giấy phép
+Dự án được xây dựng phục vụ mục đích học tập và phát triển cộng đồng.
 
-* **packages/**: Chứa code dùng chung giữa các ứng dụng
-
-  * `ui`: Component tái sử dụng
-  * `utils`: Hàm tiện ích, config chung
-
-* **docs/**: Lưu tài liệu phục vụ phát triển và trình bày đồ án
-
-### 🎯 Lợi ích của cấu trúc này
-
-* Dễ mở rộng và bảo trì
-* Tái sử dụng code giữa web và mobile
-* Đồng bộ frontend và backend trong cùng hệ thống
-* Phù hợp với các dự án fullstack quy mô nhỏ đến trung bình
-
-## 👥 Team 
-
-* Nguyễn Văn An - 23010163
-* Lê Phạm Thành Đạt - 23010541
-
+---
+*© 2024 Globetrot Team. Khám phá Việt Nam theo cách của bạn.*
