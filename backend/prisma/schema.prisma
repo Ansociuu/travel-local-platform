@@ -1,0 +1,329 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// --- User & Auth Module ---
+
+enum Role {
+  USER
+  ADMIN
+  OWNER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  phone         String?
+  avatar        String?
+  role          Role      @default(USER)
+  emailVerified DateTime?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  verificationTokens VerificationToken[]
+
+  // Relationships
+  bookings      Booking[]
+  reviews       Review[]
+  wishlists     Wishlist[]
+  ownedHotels   Hotel[]   @relation("HotelOwner")
+  ownedTours    Tour[]    @relation("TourOwner")
+  sessions      Session[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- Hotel & Inventory Module ---
+
+enum HotelType {
+  HOTEL
+  VILLA
+  HOMESTAY
+  RESORT
+}
+
+model Hotel {
+  id          String    @id @default(cuid())
+  name        String
+  description String    @db.Text
+  address     String
+  city        String
+  country     String
+  lat         Float?
+  lng         Float?
+  rating      Float     @default(0)
+  type        HotelType @default(HOTEL)
+  images      Json?     // Array of image URLs
+  policies    Json?     // Cancellation, check-in/out rules
+  ownerId     String
+  owner       User      @relation("HotelOwner", fields: [ownerId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  rooms       Room[]
+  amenities   HotelAmenity[]
+  bookings    Booking[]
+  reviews     Review[]
+  wishlists   Wishlist[]
+}
+
+model Amenity {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  icon   String?
+  hotels HotelAmenity[]
+  rooms  RoomAmenity[]
+}
+
+model HotelAmenity {
+  hotelId   String
+  hotel     Hotel   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  amenityId String
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([hotelId, amenityId])
+}
+
+model RoomAmenity {
+  roomId    String
+  room      Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  amenityId String
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, amenityId])
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  hotelId     String
+  hotel       Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  type        String?  // Single, Double, Deluxe, etc.
+  basePrice   Decimal  @db.Decimal(12, 2)
+  capacity    Int      @default(2)
+  totalRooms  Int      @default(1)
+  images      Json?
+
+  // Relationships
+  amenities    RoomAmenity[]
+  availability RoomAvailability[]
+  bookingRooms BookingRoom[]
+}
+
+model RoomAvailability {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date      DateTime
+  price     Decimal  @db.Decimal(12, 2) // Dynamic pricing for specific date
+  booked    Int      @default(0)
+  available Int      @default(1)
+
+  @@unique([roomId, date])
+}
+
+// --- Booking & Payment Module ---
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  PARTIAL
+  REFUNDED
+  FAILED
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  shortId       String        @unique // For user-friendly booking ID
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  hotelId       String?
+  hotel         Hotel?        @relation(fields: [hotelId], references: [id])
+  tourId        String?
+  tour          Tour?         @relation(fields: [tourId], references: [id])
+  checkIn       DateTime
+  checkOut      DateTime?
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  guestName     String
+  guestEmail    String
+  guestPhone    String?
+  specialRequest String?      @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relationships
+  bookingRooms BookingRoom[]
+  bookingTours BookingTour[]
+  payments     Payment[]
+  review       Review?
+}
+
+model BookingRoom {
+  id         String  @id @default(cuid())
+  bookingId  String
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  roomId     String
+  room       Room    @relation(fields: [roomId], references: [id])
+  quantity   Int     @default(1)
+  priceAtBooking Decimal @db.Decimal(12, 2)
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  amount        Decimal  @db.Decimal(12, 2)
+  provider      String?  // VNPay, Stripe, PayPal, etc.
+  method        String?  // Card, Wallet, Transfer
+  status        String   // success, failed, pending
+  transactionId String?  @unique
+  createdAt     DateTime @default(now())
+}
+
+// --- Review & Promotion ---
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  hotelId   String?
+  hotel     Hotel?    @relation(fields: [hotelId], references: [id])
+  tourId    String?
+  tour      Tour?     @relation(fields: [tourId], references: [id])
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  rating    Int      @default(5)
+  comment   String?  @db.Text
+  images    Json?
+  createdAt DateTime @default(now())
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotelId   String?
+  hotel     Hotel?    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  tourId    String?
+  tour      Tour?     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, hotelId, tourId])
+}
+
+model Coupon {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  description   String?
+  discountType  String   // PERCENTAGE or FIXED_AMOUNT
+  value         Decimal  @db.Decimal(12, 2)
+  minOrder      Decimal? @db.Decimal(12, 2)
+  maxDiscount   Decimal? @db.Decimal(12, 2)
+  startDate     DateTime
+  endDate       DateTime
+  usageLimit    Int?
+  usedCount     Int      @default(0)
+  isActive      Boolean  @default(true)
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  type      String   // 'EMAIL_VERIFICATION' or 'PASSWORD_RESET'
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [email], references: [email])
+
+  @@index([email])
+}
+
+// --- Tour Module ---
+
+model Tour {
+  id              String   @id @default(cuid())
+  name            String
+  description     String   @db.Text
+  location        String   // Tỉnh/Thành phố hoặc Tên địa danh
+  durationDays    Int      @default(1)
+  durationNights  Int      @default(0)
+  basePrice       Decimal  @db.Decimal(12, 2)
+  images          Json?    // Array of image URLs
+  includes        Json?    // Array of included services
+  excludes        Json?    // Array of excluded services
+  ownerId         String
+  owner           User     @relation("TourOwner", fields: [ownerId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  itineraries     TourItinerary[]
+  availability    TourAvailability[]
+  bookings        Booking[]
+  bookingTours    BookingTour[]
+  reviews         Review[]
+  wishlists       Wishlist[]
+}
+
+model TourItinerary {
+  id          String @id @default(cuid())
+  tourId      String
+  tour        Tour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  dayNumber   Int
+  title       String
+  description String @db.Text
+
+  @@unique([tourId, dayNumber])
+}
+
+model TourAvailability {
+  id          String   @id @default(cuid())
+  tourId      String
+  tour        Tour     @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  price       Decimal  @db.Decimal(12, 2)
+  capacity    Int      @default(10)
+  booked      Int      @default(0)
+  available   Int      @default(10)
+
+  @@unique([tourId, startDate])
+}
+
+model BookingTour {
+  id         String  @id @default(cuid())
+  bookingId  String
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tourId     String
+  tour       Tour    @relation(fields: [tourId], references: [id])
+  quantity   Int     @default(1) // Số lượng hành khách (người lớn)
+  priceAtBooking Decimal @db.Decimal(12, 2)
+}
