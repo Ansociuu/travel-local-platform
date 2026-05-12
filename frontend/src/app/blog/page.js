@@ -20,7 +20,7 @@ export default function BlogPage() {
   return (
     <div style={{ background: "#ffffff" }}>
       <Navbar />
-      <div style={{ height: "72px" }}></div>
+      <div style={{ height: "72px", background: "#0f172a" }}></div>
 
       <main style={{ maxWidth: "1280px", margin: "0 auto", padding: "40px 20px 80px" }}>
         

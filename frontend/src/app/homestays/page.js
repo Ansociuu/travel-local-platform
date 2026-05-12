@@ -148,7 +148,7 @@ export default function HomestaysPage() {
       <Navbar theme="dark" />
 
       {/* SPACING CHO TOP NAV */}
-      <div style={{ height: "72px" }}></div>
+      <div style={{ height: "72px", background: "#0f172a" }}></div>
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 20px 80px" }}>
 

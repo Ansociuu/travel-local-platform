@@ -249,7 +249,7 @@ export default function DashboardPage() {
           transform: translate(-50%, -4px) !important;
         }
       `}</style>
-      <div style={{ height: "72px" }}></div>
+      <div style={{ height: "72px", background: "#0f172a" }}></div>
 
       <main style={{ maxWidth: "1240px", margin: "40px auto", padding: "0 20px 80px" }}>
         

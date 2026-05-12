@@ -68,6 +68,11 @@ export default function Navbar({ theme = "default" }) {
       <div className="nav-auth" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
         {user ? (
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            {(user.role === "ADMIN" || user.role === "OWNER") && (
+              <Link href="/admin" style={{ textDecoration: "none", background: "linear-gradient(135deg, #0d9488, #14b8a6)", color: "#fff", padding: "7px 16px", borderRadius: "10px", fontSize: "13px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s", boxShadow: "0 4px 12px rgba(20,184,166,0.3)", display: "flex", alignItems: "center", gap: "6px" }}>
+                ⚙ Quản trị
+              </Link>
+            )}
             <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
               <img src={user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80"} style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${textColor}` }} />
               <span style={{ color: textColor, fontSize: "14px", fontWeight: 600 }}>{user.name}</span>

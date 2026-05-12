@@ -119,3 +119,30 @@ export const uploadApi = {
     });
   },
 };
+
+export const adminApi = {
+  getStats: () => apiRequest('/admin/stats'),
+  // Bookings
+  getAllBookings: () => apiRequest('/admin/bookings'),
+  updateBookingStatus: (id, status) => apiRequest(`/admin/bookings/${id}/status`, {
+    method: 'PATCH',
+    body: { status },
+  }),
+  // Users
+  getAllUsers: () => apiRequest('/admin/users'),
+  updateUserRole: (id, role) => apiRequest(`/admin/users/${id}/role`, {
+    method: 'PATCH',
+    body: { role },
+  }),
+  // Tours CRUD
+  getAllTours: () => apiRequest('/admin/tours'),
+  createTour: (data) => apiRequest('/admin/tours', { method: 'POST', body: data }),
+  updateTour: (id, data) => apiRequest(`/admin/tours/${id}`, { method: 'PATCH', body: data }),
+  deleteTour: (id) => apiRequest(`/admin/tours/${id}`, { method: 'DELETE' }),
+  // Hotels/Homestays CRUD
+  getAllHotels: () => apiRequest('/admin/hotels'),
+  createHotel: (data) => apiRequest('/admin/hotels', { method: 'POST', body: data }),
+  updateHotel: (id, data) => apiRequest(`/admin/hotels/${id}`, { method: 'PATCH', body: data }),
+  deleteHotel: (id) => apiRequest(`/admin/hotels/${id}`, { method: 'DELETE' }),
+};
+
