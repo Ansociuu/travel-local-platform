@@ -63,6 +63,20 @@ export default function RegisterPage() {
     }
   };
 
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      await authApi.resendOtp(email);
+      // Show some feedback, maybe a temporary success state
+      alert("Mã xác thực mới đã được gửi!");
+    } catch (err) {
+      setError(err.message || "Không thể gửi lại mã. Vui lòng thử lại sau.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isVerified) {
     return (
       <div style={{ textAlign: "center", padding: "40px 0" }}>
@@ -134,7 +148,7 @@ export default function RegisterPage() {
           </button>
 
           <p style={{ fontSize: "14px", color: "#64748b" }}>
-            Không nhận được mã? <button type="button" style={{ background: "none", border: "none", color: "#0d9488", fontWeight: 700, cursor: "pointer" }}>Gửi lại mã</button>
+            Không nhận được mã? <button type="button" onClick={handleResendOtp} style={{ background: "none", border: "none", color: "#0d9488", fontWeight: 700, cursor: "pointer" }}>Gửi lại mã</button>
           </p>
         </form>
       </div>

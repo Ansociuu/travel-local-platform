@@ -20,11 +20,36 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const existingUser = await this.usersService.findByEmail(dto.email);
+    
     if (existingUser) {
-      throw new ConflictException('Email đã tồn tại');
+      if (existingUser.isVerified) {
+        throw new ConflictException('Email đã tồn tại');
+      }
+      
+      // If user exists but not verified, update their info and send new OTP
+      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      await this.prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          name: dto.name,
+          password: hashedPassword,
+        },
+      });
+      
+      // Clear old tokens for this email
+      await this.prisma.verificationToken.deleteMany({
+        where: { email: dto.email, type: 'EMAIL_VERIFICATION' },
+      });
+    } else {
+      await this.usersService.create(dto);
     }
 
-    const user = await this.usersService.create(dto);
+    const user = await this.usersService.findByEmail(dto.email);
+
+    if (!user) {
+      throw new ConflictException('Đã có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại.');
+    }
+
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -215,6 +240,37 @@ export class AuthService {
         avatar: user.avatar,
       },
     };
+  }
+
+  async resendOtp(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Email không tồn tại');
+    }
+    if (user.isVerified) {
+      throw new ConflictException('Tài khoản đã được xác thực');
+    }
+
+    // Delete existing tokens
+    await this.prisma.verificationToken.deleteMany({
+      where: { email, type: 'EMAIL_VERIFICATION' },
+    });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await this.prisma.verificationToken.create({
+      data: {
+        token: otp,
+        email,
+        type: 'EMAIL_VERIFICATION',
+        expiresAt,
+      },
+    });
+
+    await this.mailService.sendVerificationEmail(email, user.name || 'Khách hàng', otp);
+
+    return { message: 'Mã xác thực mới đã được gửi.' };
   }
 
   async facebookLogin(req) {

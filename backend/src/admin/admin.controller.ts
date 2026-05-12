@@ -42,6 +42,22 @@ export class AdminController {
     return this.adminService.updateUserRole(req.user.id, id, body.role);
   }
 
+  @Post('users')
+  createUser(@Request() req, @Body() body: any) {
+    return this.adminService.createUser(req.user.id, body);
+  }
+
+  @Patch('users/:id')
+  updateUser(@Request() req, @Param('id') id: string, @Body() body: any) {
+    return this.adminService.updateUser(req.user.id, id, body);
+  }
+
+  @Delete('users/:id')
+  deleteUser(@Request() req, @Param('id') id: string) {
+    return this.adminService.deleteUser(req.user.id, id);
+  }
+
+
   // --- Tours CRUD ---
   @Get('tours')
   getAllTours(@Request() req) {

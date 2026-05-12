@@ -1,5 +1,6 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AdminService {
@@ -7,8 +8,8 @@ export class AdminService {
 
   private async assertAdmin(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'OWNER')) {
-      throw new ForbiddenException('Chỉ admin hoặc owner mới có quyền truy cập');
+    if (!user || user.role !== 'ADMIN') {
+      throw new ForbiddenException('Chỉ admin mới có quyền truy cập');
     }
     return user;
   }
@@ -138,6 +139,113 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async createUser(adminId: string, data: any) {
+    await this.assertAdmin(adminId);
+    
+    if (!data.email) throw new BadRequestException('Email là bắt buộc');
+    if (!data.password && data.role !== 'USER') {
+      // For owners/admins, maybe we want to force a password, but let's default for now
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) throw new ConflictException('Email đã tồn tại');
+
+    const hashedPassword = await bcrypt.hash(data.password || '123456', 10);
+
+    try {
+      return await this.prisma.user.create({
+        data: {
+          email: data.email,
+          password: hashedPassword,
+          name: data.name || '',
+          phone: data.phone || '',
+          role: data.role || 'USER',
+          isVerified: true,
+        },
+        select: { id: true, name: true, email: true, role: true, phone: true }
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  }
+
+  async updateUser(adminId: string, userId: string, data: any) {
+    await this.assertAdmin(adminId);
+    
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Không tìm thấy người dùng');
+
+    const updateData: any = {};
+    if (data.email !== undefined && data.email !== user.email) {
+      if (!data.email) throw new BadRequestException('Email không được để trống');
+      const existing = await this.prisma.user.findUnique({ where: { email: data.email } });
+      if (existing) throw new ConflictException('Email đã tồn tại');
+      updateData.email = data.email;
+    }
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.role !== undefined) {
+      // Basic validation for role
+      const validRoles = ['ADMIN', 'USER', 'OWNER'];
+      if (validRoles.includes(data.role)) {
+        updateData.role = data.role;
+      }
+    }
+    
+    if (data.password && data.password.trim() !== '') {
+      updateData.password = await bcrypt.hash(data.password, 10);
+    }
+
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: { id: true, name: true, email: true, role: true, phone: true }
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  }
+
+  async deleteUser(adminId: string, targetUserId: string) {
+    await this.assertAdmin(adminId);
+    
+    if (adminId === targetUserId) {
+      throw new ForbiddenException('Không thể tự xoá chính mình');
+    }
+
+    // Check if user exists
+    const user = await this.prisma.user.findUnique({ 
+      where: { id: targetUserId },
+      include: { _count: { select: { bookings: true, ownedHotels: true, ownedTours: true } } }
+    });
+    
+    if (!user) throw new NotFoundException('Người dùng không tồn tại');
+
+    // If user has hotels or tours, prevent deletion to avoid orphan records
+    if (user._count.ownedHotels > 0 || user._count.ownedTours > 0) {
+      throw new BadRequestException('Không thể xoá người dùng này vì họ đang sở hữu Homestay hoặc Tour. Vui lòng chuyển quyền sở hữu hoặc xoá các dịch vụ đó trước.');
+    }
+
+    try {
+      // Manual cascade for related entities that don't have it in schema
+      await this.prisma.$transaction([
+        this.prisma.wishlist.deleteMany({ where: { userId: targetUserId } }),
+        this.prisma.review.deleteMany({ where: { userId: targetUserId } }),
+        this.prisma.session.deleteMany({ where: { userId: targetUserId } }),
+        this.prisma.booking.deleteMany({ where: { userId: targetUserId } }), // In a real app, we might want to keep these but anonymize them
+        this.prisma.user.delete({ where: { id: targetUserId } }),
+      ]);
+      return { message: 'Xoá người dùng thành công' };
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw new BadRequestException('Không thể xoá người dùng này do có ràng buộc dữ liệu phức tạp.');
+    }
   }
 
   async updateUserRole(adminId: string, targetUserId: string, role: string) {

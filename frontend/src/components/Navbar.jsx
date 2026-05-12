@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Plane, Menu, X } from "lucide-react";
+import { Plane, Menu, X, MessageCircle } from "lucide-react";
 
 export default function Navbar({ theme = "default" }) {
   const pathname = usePathname();
@@ -68,11 +68,14 @@ export default function Navbar({ theme = "default" }) {
       <div className="nav-auth" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
         {user ? (
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            {(user.role === "ADMIN" || user.role === "OWNER") && (
+            {user.role === "ADMIN" && (
               <Link href="/admin" style={{ textDecoration: "none", background: "linear-gradient(135deg, #0d9488, #14b8a6)", color: "#fff", padding: "7px 16px", borderRadius: "10px", fontSize: "13px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s", boxShadow: "0 4px 12px rgba(20,184,166,0.3)", display: "flex", alignItems: "center", gap: "6px" }}>
                 ⚙ Quản trị
               </Link>
             )}
+            <Link href="/chat" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "10px", background: scrolled ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.12)", transition: "all 0.2s", textDecoration: "none" }} title="Tin nhắn">
+              <MessageCircle size={18} color={textColor} />
+            </Link>
             <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
               <img src={user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80"} style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${textColor}` }} />
               <span style={{ color: textColor, fontSize: "14px", fontWeight: 600 }}>{user.name}</span>

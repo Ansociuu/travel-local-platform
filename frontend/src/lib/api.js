@@ -44,6 +44,14 @@ export const authApi = {
     method: 'POST',
     body: userData,
   }),
+  verifyOtp: (email, token) => apiRequest('/auth/verify', {
+    method: 'POST',
+    body: { email, token },
+  }),
+  resendOtp: (email) => apiRequest('/auth/resend-otp', {
+    method: 'POST',
+    body: { email },
+  }),
   getMe: () => apiRequest('/auth/me'),
   updateMe: (userData) => apiRequest('/users/me', {
     method: 'PATCH',
@@ -129,7 +137,10 @@ export const adminApi = {
     body: { status },
   }),
   // Users
-  getAllUsers: () => apiRequest('/admin/users'),
+  getUsers: () => apiRequest('/admin/users'),
+  createUser: (data) => apiRequest('/admin/users', { method: 'POST', body: data }),
+  updateUser: (id, data) => apiRequest(`/admin/users/${id}`, { method: 'PATCH', body: data }),
+  deleteUser: (id) => apiRequest(`/admin/users/${id}`, { method: 'DELETE' }),
   updateUserRole: (id, role) => apiRequest(`/admin/users/${id}/role`, {
     method: 'PATCH',
     body: { role },
@@ -146,3 +157,13 @@ export const adminApi = {
   deleteHotel: (id) => apiRequest(`/admin/hotels/${id}`, { method: 'DELETE' }),
 };
 
+export const chatApi = {
+  getConversations: () => apiRequest('/chat/conversations'),
+  createConversation: (participantId) => apiRequest('/chat/conversations', {
+    method: 'POST',
+    body: { participantId },
+  }),
+  getMessages: (conversationId, skip = 0) => apiRequest(`/chat/conversations/${conversationId}/messages?take=50&skip=${skip}`),
+  getUnreadCount: () => apiRequest('/chat/unread'),
+  searchUsers: (q) => apiRequest(`/chat/users/search?q=${encodeURIComponent(q)}`),
+};

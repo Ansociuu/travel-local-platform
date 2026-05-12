@@ -26,6 +26,12 @@ export class AuthController {
     return this.authService.verifyEmail(body.email, body.token);
   }
 
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Gửi lại mã OTP xác thực' })
+  resendOtp(@Body() body: { email: string }) {
+    return this.authService.resendOtp(body.email);
+  }
+
   @Post('login')
   @ApiOperation({ summary: 'Đăng nhập hệ thống' })
   login(@Body() loginDto: LoginDto) {

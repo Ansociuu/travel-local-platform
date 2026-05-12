@@ -38,6 +38,10 @@ async function bootstrap() {
     transform: true,
   }));
 
+  // Global Interceptor
+  const { LoggingInterceptor } = require('./common/interceptors/logging.interceptor');
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('MoodTravel API')
