@@ -8,9 +8,9 @@ import {
   User, ShoppingBag, LogOut, Camera, MapPin, Calendar, 
   Clock, CreditCard, ChevronRight, XCircle, CheckCircle, 
   AlertCircle, Heart, Star, Shield, LayoutDashboard,
-  TrendingUp, Wallet, Map, PieChart, MessageSquare
+  TrendingUp, Wallet, Map, PieChart, MessageSquare, ImagePlus, Edit3, Trash2, Building2
 } from "lucide-react";
-import { authApi, bookingsApi, uploadApi, wishlistApi, reviewsApi } from "@/lib/api";
+import { authApi, bookingsApi, uploadApi, wishlistApi, reviewsApi, ownerApi, usersApi } from "@/lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -32,6 +32,10 @@ export default function DashboardPage() {
   const [formData, setFormData] = useState({ name: "", phone: "" });
   const [passwordData, setPasswordData] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [avatar, setAvatar] = useState("");
+  const [ownerApplication, setOwnerApplication] = useState(null);
+  const [profilePosts, setProfilePosts] = useState([]);
+  const [postForm, setPostForm] = useState({ content: "", images: [] });
+  const [editingPostId, setEditingPostId] = useState(null);
 
   // Lists state
   const [bookings, setBookings] = useState([]);
@@ -49,6 +53,7 @@ export default function DashboardPage() {
       try {
         const userData = await authApi.getMe();
         setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
         setFormData({ name: userData.name || "", phone: userData.phone || "" });
         setAvatar(userData.avatar || "");
         
@@ -67,7 +72,12 @@ export default function DashboardPage() {
     if (activeTab === "bookings") fetchBookings();
     if (activeTab === "wishlist") fetchWishlist();
     if (activeTab === "reviews") fetchReviews();
+    if (activeTab === "profile") fetchProfileExtras();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (user?.id && activeTab === "profile") fetchProfileExtras();
+  }, [user?.id, activeTab]);
 
   const fetchBookings = async () => {
     setListLoading(true);
@@ -102,6 +112,25 @@ export default function DashboardPage() {
       console.error(err);
     } finally {
       setListLoading(false);
+    }
+  };
+
+  const fetchProfileExtras = async () => {
+    if (!user?.id) return;
+    try {
+      const profile = await usersApi.getPublicProfile(user.id);
+      setProfilePosts(profile.posts || []);
+    } catch (err) {
+      console.error(err);
+    }
+
+    if (user.role !== "OWNER" && user.role !== "ADMIN") {
+      try {
+        const app = await ownerApi.getMyApplication();
+        setOwnerApplication(app);
+      } catch {
+        setOwnerApplication(null);
+      }
     }
   };
 
@@ -158,6 +187,70 @@ export default function DashboardPage() {
     }
   };
 
+  const handlePostImageChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUpdating(true);
+    try {
+      const uploaded = [];
+      for (const file of files) {
+        const res = await uploadApi.uploadImage(file);
+        if (res.url) uploaded.push(res.url);
+      }
+      setPostForm((prev) => ({ ...prev, images: [...prev.images, ...uploaded] }));
+    } catch (err) {
+      alert("Lỗi upload ảnh: " + err.message);
+    } finally {
+      setUpdating(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemovePostImage = (url) => {
+    setPostForm((prev) => ({ ...prev, images: prev.images.filter((item) => item !== url) }));
+  };
+
+  const resetPostForm = () => {
+    setPostForm({ content: "", images: [] });
+    setEditingPostId(null);
+  };
+
+  const handleSubmitPost = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      if (editingPostId) await usersApi.updatePost(editingPostId, postForm);
+      else await usersApi.createPost(postForm);
+      await fetchProfileExtras();
+      resetPostForm();
+      alert(editingPostId ? "Đã cập nhật bài đăng!" : "Đã đăng bài!");
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleEditPost = (post) => {
+    setEditingPostId(post.id);
+    setPostForm({ content: post.content || "", images: Array.isArray(post.images) ? post.images : [] });
+  };
+
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm("Xoá bài đăng này?")) return;
+    setUpdating(true);
+    try {
+      await usersApi.deletePost(postId);
+      if (editingPostId === postId) resetPostForm();
+      await fetchProfileExtras();
+      alert("Đã xoá bài đăng!");
+    } catch (err) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleToggleWishlist = async (type, id) => {
     try {
       await wishlistApi.toggle(type === 'tour' ? { tourId: id } : { hotelId: id });
@@ -172,6 +265,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    window.dispatchEvent(new Event("auth-session-changed"));
     router.push("/login");
   };
 
@@ -476,25 +570,111 @@ export default function DashboardPage() {
 
             {/* PROFILE TAB */}
             {activeTab === "profile" && (
-              <div style={{ background: "#fff", borderRadius: "24px", padding: "40px", border: "1px solid rgba(0,0,0,0.05)" }}>
-                <h2 style={{ fontSize: "24px", fontWeight: 800, color: "#0f172a", marginBottom: "32px" }}>Thông tin cá nhân</h2>
-                <form onSubmit={handleUpdateProfile} style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "500px" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Họ và tên</label>
-                    <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", outline: "none", fontSize: "15px", fontWeight: 500 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                <div style={{ background: "#fff", borderRadius: "24px", padding: "40px", border: "1px solid rgba(0,0,0,0.05)" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "20px", marginBottom: "32px", flexWrap: "wrap" }}>
+                    <div>
+                      <h2 style={{ fontSize: "24px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>Thông tin cá nhân</h2>
+                      <p style={{ color: "#64748b", margin: 0, fontWeight: 600 }}>Quản lý hồ sơ, profile công khai và đăng ký owner.</p>
+                    </div>
+                    <Link href={user?.id ? `/profile/${user.id}` : "/dashboard"} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: "12px", border: "1px solid #dbe4ee", color: "#0f172a", textDecoration: "none", fontWeight: 800 }}>
+                      <User size={16} /> Xem profile công khai
+                    </Link>
                   </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Số điện thoại</label>
-                    <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", outline: "none", fontSize: "15px", fontWeight: 500 }} />
+
+                  <div style={{ padding: "18px", borderRadius: "18px", border: "1px solid #ccfbf1", background: "#f0fdfa", display: "flex", justifyContent: "space-between", gap: "18px", alignItems: "center", flexWrap: "wrap", marginBottom: "32px" }}>
+                    <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+                      <div style={{ width: 46, height: 46, borderRadius: "14px", background: "#0d9488", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Building2 size={22} />
+                      </div>
+                      <div>
+                        <div style={{ color: "#0f172a", fontWeight: 900, marginBottom: 4 }}>
+                          {user?.role === "OWNER" ? "Bạn đã là owner" : ownerApplication?.status === "PENDING" ? "Hồ sơ owner đang chờ duyệt" : ownerApplication?.status === "REJECTED" ? "Hồ sơ owner cần cập nhật" : "Bạn muốn đăng ký làm owner?"}
+                        </div>
+                        <div style={{ color: "#64748b", fontSize: 14, fontWeight: 650 }}>
+                          {user?.role === "OWNER" ? "Quản lý homestay, tour và booking tại Owner Center." : "Gửi hồ sơ đối tác để đăng homestay/tour và quản lý dịch vụ của bạn."}
+                        </div>
+                      </div>
+                    </div>
+                    <Link href="/owner" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: "12px", border: "none", background: "#0d9488", color: "#fff", textDecoration: "none", fontWeight: 900 }}>
+                      {user?.role === "OWNER" ? "Vào Owner Center" : ownerApplication ? "Xem/cập nhật hồ sơ" : "Đăng ký làm owner"}
+                    </Link>
                   </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Email</label>
-                    <input type="email" value={user?.email} disabled style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#94a3b8", cursor: "not-allowed" }} />
-                  </div>
-                  <button type="submit" disabled={updating} className="shimmer-btn" style={{ width: "fit-content", padding: "14px 32px", borderRadius: "12px", border: "none", fontSize: "15px", fontWeight: 700 }}>
-                    {updating ? "Đang xử lý..." : "Lưu thay đổi"}
-                  </button>
-                </form>
+
+                  <form onSubmit={handleUpdateProfile} style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "500px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Họ và tên</label>
+                      <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", outline: "none", fontSize: "15px", fontWeight: 500 }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Số điện thoại</label>
+                      <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", outline: "none", fontSize: "15px", fontWeight: 500 }} />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "14px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Email</label>
+                      <input type="email" value={user?.email} disabled style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#94a3b8", cursor: "not-allowed" }} />
+                    </div>
+                    <button type="submit" disabled={updating} className="shimmer-btn" style={{ width: "fit-content", padding: "14px 32px", borderRadius: "12px", border: "none", fontSize: "15px", fontWeight: 700 }}>
+                      {updating ? "Đang xử lý..." : "Lưu thay đổi"}
+                    </button>
+                  </form>
+                </div>
+
+                <div style={{ background: "#fff", borderRadius: "24px", padding: "32px", border: "1px solid rgba(0,0,0,0.05)" }}>
+                  <h2 style={{ fontSize: "22px", fontWeight: 900, color: "#0f172a", marginBottom: "18px" }}>{editingPostId ? "Chỉnh sửa bài đăng" : "Tạo bài đăng cá nhân"}</h2>
+                  <form onSubmit={handleSubmitPost} style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "28px" }}>
+                    <textarea value={postForm.content} onChange={(e) => setPostForm({ ...postForm, content: e.target.value })} placeholder="Bạn muốn chia sẻ điều gì?" style={{ width: "100%", minHeight: 120, padding: "16px", borderRadius: "16px", border: "1px solid #e2e8f0", outline: "none", resize: "vertical", fontSize: 15, lineHeight: 1.6 }} />
+                    {postForm.images.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+                        {postForm.images.map((url) => (
+                          <div key={url} style={{ position: "relative" }}>
+                            <img src={url} style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: "12px" }} />
+                            <button type="button" onClick={() => handleRemovePostImage(url)} style={{ position: "absolute", top: 6, right: 6, width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(15,23,42,0.75)", color: "#fff", cursor: "pointer", fontWeight: 900 }}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: "12px", border: "1px solid #dbe4ee", color: "#0f172a", fontWeight: 800, cursor: "pointer" }}>
+                        <ImagePlus size={16} /> Thêm ảnh
+                        <input type="file" hidden multiple accept="image/*" onChange={handlePostImageChange} disabled={updating} />
+                      </label>
+                      <div style={{ display: "flex", gap: 10 }}>
+                        {editingPostId && <button type="button" onClick={resetPostForm} style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid #dbe4ee", background: "#fff", fontWeight: 800, cursor: "pointer" }}>Huỷ</button>}
+                        <button type="submit" disabled={updating} style={{ padding: "12px 18px", borderRadius: "12px", border: "none", background: "#0d9488", color: "#fff", fontWeight: 900, cursor: "pointer" }}>
+                          {updating ? "Đang lưu..." : editingPostId ? "Lưu bài" : "Đăng bài"}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+
+                  <h3 style={{ fontSize: "18px", fontWeight: 900, color: "#0f172a", marginBottom: "16px" }}>Bài đăng của tôi</h3>
+                  {profilePosts.length === 0 ? (
+                    <div style={{ padding: 28, textAlign: "center", color: "#94a3b8", background: "#f8fafc", borderRadius: 16, fontWeight: 700 }}>Bạn chưa có bài đăng nào.</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {profilePosts.map((post) => (
+                        <div key={post.id} style={{ border: "1px solid #e2e8f0", borderRadius: "18px", overflow: "hidden" }}>
+                          <div style={{ padding: 18, display: "flex", justifyContent: "space-between", gap: 14 }}>
+                            <div>
+                              <p style={{ margin: 0, color: "#334155", whiteSpace: "pre-wrap", lineHeight: 1.65 }}>{post.content}</p>
+                              <div style={{ marginTop: 10, color: "#94a3b8", fontSize: 12, fontWeight: 700 }}>{new Date(post.createdAt).toLocaleDateString("vi-VN")}</div>
+                            </div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button onClick={() => handleEditPost(post)} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #dbe4ee", background: "#fff", cursor: "pointer" }}><Edit3 size={15} /></button>
+                              <button onClick={() => handleDeletePost(post.id)} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #fecaca", background: "#fff5f5", color: "#dc2626", cursor: "pointer" }}><Trash2 size={15} /></button>
+                            </div>
+                          </div>
+                          {Array.isArray(post.images) && post.images.length > 0 && (
+                            <div style={{ display: "grid", gridTemplateColumns: post.images.length === 1 ? "1fr" : "1fr 1fr", gap: 4 }}>
+                              {post.images.map((url) => <img key={url} src={url} style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

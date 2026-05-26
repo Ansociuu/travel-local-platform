@@ -283,6 +283,19 @@
   background: #f8fafc;
 }
 
+.messageError {
+  align-self: center;
+  max-width: 520px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .msgRow {
   display: flex;
   align-items: flex-end;

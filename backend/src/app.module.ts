@@ -16,6 +16,8 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
+import { OwnerModule } from './owner/owner.module';
+import { BlogModule } from './blog/blog.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { ChatModule } from './chat/chat.module';
     WishlistModule,
     AdminModule,
     ChatModule,
+    OwnerModule,
+    BlogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, ShoppingCart, Users, Map, Home, TrendingUp, DollarSign, UserPlus, CalendarCheck, Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Users, Map, Home, TrendingUp, DollarSign, UserPlus, Plus, Pencil, Trash2, ArrowLeft, ClipboardCheck } from "lucide-react";
 import s from "./admin.module.css";
 import { adminApi } from "@/lib/api";
 
@@ -10,11 +10,14 @@ const TABS = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
   { id: "bookings", label: "Đặt chỗ", icon: ShoppingCart },
   { id: "users", label: "Người dùng", icon: Users },
+  { id: "owner-applications", label: "Hồ sơ owner", icon: ClipboardCheck },
   { id: "tours", label: "Tour", icon: Map },
   { id: "hotels", label: "Homestay", icon: Home },
 ];
 const STATUS_MAP = { PENDING: ["Chờ xử lý", s.badgePending], CONFIRMED: ["Đã xác nhận", s.badgeConfirmed], CANCELLED: ["Đã huỷ", s.badgeCancelled], COMPLETED: ["Hoàn thành", s.badgeCompleted] };
 const ROLE_MAP = { ADMIN: s.badgeAdmin, USER: s.badgeUser, OWNER: s.badgeOwner };
+const APPROVAL_MAP = { DRAFT: ["Nháp", s.badgeUser], PENDING_REVIEW: ["Chờ duyệt", s.badgePending], APPROVED: ["Đã duyệt", s.badgeConfirmed], REJECTED: ["Từ chối", s.badgeCancelled], ARCHIVED: ["Lưu trữ", s.badgeUser] };
+const APPLICATION_MAP = { PENDING: ["Chờ duyệt", s.badgePending], APPROVED: ["Đã duyệt", s.badgeConfirmed], REJECTED: ["Từ chối", s.badgeCancelled] };
 const fmt = (n) => n == null ? "0" : Number(n).toLocaleString("vi-VN");
 const fmtD = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "—";
 
@@ -24,6 +27,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [users, setUsers] = useState([]);
+  const [ownerApplications, setOwnerApplications] = useState([]);
   const [tours, setTours] = useState([]);
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +35,8 @@ export default function AdminPage() {
   const [modal, setModal] = useState(null); // {type:'tour'|'hotel', mode:'create'|'edit', data:{}}
   const [form, setForm] = useState({});
   const [toast, setToast] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null); // {type, id, name}
+  const [preview, setPreview] = useState(null); // {type:'tour'|'hotel', data}
 
   useEffect(() => {
     const u = localStorage.getItem("user");
@@ -46,13 +52,19 @@ export default function AdminPage() {
       if (tab === "overview") setStats(await adminApi.getStats());
       else if (tab === "bookings") setBookings(await adminApi.getAllBookings());
       else if (tab === "users") setUsers(await adminApi.getUsers());
+      else if (tab === "owner-applications") setOwnerApplications(await adminApi.getOwnerApplications());
       else if (tab === "tours") setTours(await adminApi.getAllTours());
       else if (tab === "hotels") setHotels(await adminApi.getAllHotels());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [tab]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const updateBkStatus = async (id, status) => {
     try { await adminApi.updateBookingStatus(id, status); setBookings(p => p.map(b => b.id === id ? { ...b, status } : b)); showToast("Cập nhật thành công"); } catch (e) { showToast(e.message, false); }
@@ -60,6 +72,35 @@ export default function AdminPage() {
 
   const updateRole = async (id, role) => {
     try { await adminApi.updateUserRole(id, role); setUsers(p => p.map(u => u.id === id ? { ...u, role } : u)); showToast("Cập nhật vai trò thành công"); } catch (e) { showToast(e.message, false); }
+  };
+
+  const updateOwnerApplication = async (id, status) => {
+    const rejectionReason = status === "REJECTED" ? window.prompt("Lý do từ chối hồ sơ") || "" : "";
+    try {
+      const updated = await adminApi.updateOwnerApplicationStatus(id, status, rejectionReason);
+      setOwnerApplications(p => p.map(app => app.id === id ? updated : app));
+      showToast(status === "APPROVED" ? "Đã duyệt hồ sơ owner" : "Đã từ chối hồ sơ");
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  const updateHotelApproval = async (id, status) => {
+    const note = status === "REJECTED" ? window.prompt("Lý do từ chối homestay") || "" : "";
+    try {
+      const updated = await adminApi.updateHotelApproval(id, status, note);
+      setHotels(p => p.map(h => h.id === id ? updated : h));
+      if (preview?.data?.id === id) setPreview({ type: "hotel", data: updated });
+      showToast(status === "APPROVED" ? "Đã duyệt homestay" : "Đã từ chối homestay");
+    } catch (e) { showToast(e.message, false); }
+  };
+
+  const updateTourApproval = async (id, status) => {
+    const note = status === "REJECTED" ? window.prompt("Lý do từ chối tour") || "" : "";
+    try {
+      const updated = await adminApi.updateTourApproval(id, status, note);
+      setTours(p => p.map(t => t.id === id ? updated : t));
+      if (preview?.data?.id === id) setPreview({ type: "tour", data: updated });
+      showToast(status === "APPROVED" ? "Đã duyệt tour" : "Đã từ chối tour");
+    } catch (e) { showToast(e.message, false); }
   };
 
   // CRUD handlers
@@ -90,15 +131,17 @@ export default function AdminPage() {
     } catch (e) { showToast(e.message, false); }
   };
 
-  const handleDelete = async (type, id) => {
-    // We'll skip window.confirm to avoid blocking the agent, 
-    // but in a real app we'd use a custom modal.
+  const askDelete = (type, id, name) => setConfirmDel({ type, id, name });
+  const handleDelete = async () => {
+    if (!confirmDel) return;
+    const { type, id } = confirmDel;
     try {
       if (type === "tour") { await adminApi.deleteTour(id); setTours(p => p.filter(t => t.id !== id)); }
       else if (type === "hotel") { await adminApi.deleteHotel(id); setHotels(p => p.filter(h => h.id !== id)); }
       else if (type === "user") { await adminApi.deleteUser(id); setUsers(p => p.filter(u => u.id !== id)); }
       showToast("Xoá thành công");
     } catch (e) { showToast(e.message, false); }
+    setConfirmDel(null);
   };
 
   const filtered = bkFilter === "ALL" ? bookings : bookings.filter(b => b.status === bkFilter);
@@ -149,7 +192,7 @@ export default function AdminPage() {
                 { icon: DollarSign, color: "#0d9488", bg: "rgba(20,184,166,0.1)", val: fmt(stats.totalRevenue) + "₫", label: "Tổng doanh thu", sub: `Tháng này: ${fmt(stats.revenueThisMonth)}₫` },
                 { icon: ShoppingCart, color: "#6366f1", bg: "rgba(99,102,241,0.1)", val: fmt(stats.totalBookings), label: "Tổng đặt chỗ", sub: `${stats.pendingBookings} chờ xử lý` },
                 { icon: Users, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", val: fmt(stats.totalUsers), label: "Người dùng", sub: `+${stats.newUsersThisMonth} tháng này` },
-                { icon: Map, color: "#ec4899", bg: "rgba(236,72,153,0.1)", val: stats.totalTours + stats.totalHotels, label: "Sản phẩm", sub: `${stats.totalTours} tour · ${stats.totalHotels} homestay` },
+                { icon: Map, color: "#ec4899", bg: "rgba(236,72,153,0.1)", val: stats.totalTours + stats.totalHotels, label: "Sản phẩm", sub: `${stats.pendingHotels || 0} homestay, ${stats.pendingTours || 0} tour chờ duyệt` },
               ].map((c, i) => (
                 <div className={s.statCard} key={i}>
                   <div className={s.statIcon} style={{ background: c.bg }}><c.icon size={20} color={c.color} /></div>
@@ -231,6 +274,7 @@ export default function AdminPage() {
               {[
                 { label: "Thêm Tour", icon: "🗺️", action: () => { setTab("tours"); setTimeout(() => openCreate("tour"), 100); } },
                 { label: "Thêm Homestay", icon: "🏡", action: () => { setTab("hotels"); setTimeout(() => openCreate("hotel"), 100); } },
+                { label: "Duyệt Owner", icon: "✅", action: () => setTab("owner-applications") },
                 { label: "Xem Đặt chỗ", icon: "📋", action: () => setTab("bookings") },
                 { label: "Quản lý Users", icon: "👥", action: () => setTab("users") },
               ].map((a, i) => (
@@ -302,7 +346,43 @@ export default function AdminPage() {
                         <td style={{ fontWeight: 600 }}>{u._count?.bookings ?? 0}</td>
                         <td style={{ display: "flex", gap: "8px" }}>
                           <button className={s.editBtn} onClick={() => openEdit("user", u)}><Pencil size={12} /></button>
-                          <button className={s.deleteBtn} onClick={() => handleDelete("user", u.id)}><Trash2 size={12} /></button>
+                          <button className={s.deleteBtn} onClick={() => askDelete("user", u.id, u.name)}><Trash2 size={12} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>)}
+
+          {/* OWNER APPLICATIONS */}
+          {tab === "owner-applications" && (<>
+            <div className={s.pageHeader}><h1 className={s.pageTitle}>Duyệt hồ sơ owner</h1><p className={s.pageSubtitle}>Xem xét hồ sơ đăng ký làm chủ homestay và cấp quyền OWNER</p></div>
+            <div className={s.tableCard}>
+              <div className={s.tableHeader}>
+                <h3 className={s.tableTitle}>Hồ sơ đối tác ({ownerApplications.length})</h3>
+              </div>
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead><tr><th>Thương hiệu</th><th>Người liên hệ</th><th>Tài khoản</th><th>Địa chỉ</th><th>Trạng thái</th><th>Ngày gửi</th><th>Hành động</th></tr></thead>
+                  <tbody>
+                    {ownerApplications.length === 0 && <tr><td colSpan={7} className={s.emptyState}>Chưa có hồ sơ owner</td></tr>}
+                    {ownerApplications.map(app => (
+                      <tr key={app.id}>
+                        <td><div className={s.userName}>{app.businessName}</div><div className={s.userEmail}>{app.note || "Không có ghi chú"}</div></td>
+                        <td><div className={s.userName}>{app.contactName}</div><div className={s.userEmail}>{app.phone}</div></td>
+                        <td><div>{app.user?.email}</div><span className={ROLE_MAP[app.user?.role] || s.badgeUser}>{app.user?.role}</span></td>
+                        <td>{app.address}, {app.city}</td>
+                        <td><span className={APPLICATION_MAP[app.status]?.[1]}>{APPLICATION_MAP[app.status]?.[0] || app.status}</span></td>
+                        <td>{fmtD(app.createdAt)}</td>
+                        <td>
+                          {app.status === "PENDING" ? (
+                            <>
+                              <button className={s.confirmBtn} onClick={() => updateOwnerApplication(app.id, "APPROVED")}>Duyệt</button>
+                              <button className={s.cancelBtn} onClick={() => updateOwnerApplication(app.id, "REJECTED")}>Từ chối</button>
+                            </>
+                          ) : <span style={{ color: "#cbd5e1", fontSize: 12 }}>—</span>}
                         </td>
                       </tr>
                     ))}
@@ -322,7 +402,7 @@ export default function AdminPage() {
               </div>
               <div className={s.tableWrap}>
                 <table className={s.table}>
-                  <thead><tr><th>Tên</th><th>Địa điểm</th><th>Thời gian</th><th>Giá</th><th>Bookings</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
+                  <thead><tr><th>Tên</th><th>Địa điểm</th><th>Thời gian</th><th>Giá</th><th>Duyệt</th><th>Bookings</th><th>Hành động</th></tr></thead>
                   <tbody>
                     {tours.length === 0 && <tr><td colSpan={7} className={s.emptyState}>Chưa có tour</td></tr>}
                     {tours.map(t => (
@@ -331,11 +411,14 @@ export default function AdminPage() {
                         <td>{t.location}</td>
                         <td>{t.durationDays}N{t.durationNights}Đ</td>
                         <td style={{ fontWeight: 700, color: "#0d9488" }}>{fmt(t.basePrice)}₫</td>
+                        <td><span className={APPROVAL_MAP[t.approvalStatus]?.[1]}>{APPROVAL_MAP[t.approvalStatus]?.[0] || t.approvalStatus}</span></td>
                         <td>{t._count?.bookings ?? 0}</td>
-                        <td>{fmtD(t.createdAt)}</td>
                         <td>
+                          <button className={s.editBtn} onClick={() => setPreview({ type: "tour", data: t })}>Xem</button>
                           <button className={s.editBtn} onClick={() => openEdit("tour", t)}><Pencil size={12} /></button>
-                          <button className={s.deleteBtn} onClick={() => handleDelete("tour", t.id)}><Trash2 size={12} /></button>
+                          {t.approvalStatus === "PENDING_REVIEW" && <button className={s.confirmBtn} onClick={() => updateTourApproval(t.id, "APPROVED")}>Duyệt</button>}
+                          {t.approvalStatus === "PENDING_REVIEW" && <button className={s.cancelBtn} onClick={() => updateTourApproval(t.id, "REJECTED")}>Từ chối</button>}
+                          <button className={s.deleteBtn} onClick={() => askDelete("tour", t.id, t.name)}><Trash2 size={12} /></button>
                         </td>
                       </tr>
                     ))}
@@ -355,7 +438,7 @@ export default function AdminPage() {
               </div>
               <div className={s.tableWrap}>
                 <table className={s.table}>
-                  <thead><tr><th>Tên</th><th>Thành phố</th><th>Loại</th><th>Đánh giá</th><th>Phòng</th><th>Bookings</th><th>Hành động</th></tr></thead>
+                  <thead><tr><th>Tên</th><th>Thành phố</th><th>Loại</th><th>Duyệt</th><th>Phòng</th><th>Bookings</th><th>Hành động</th></tr></thead>
                   <tbody>
                     {hotels.length === 0 && <tr><td colSpan={7} className={s.emptyState}>Chưa có homestay</td></tr>}
                     {hotels.map(h => (
@@ -363,12 +446,15 @@ export default function AdminPage() {
                         <td className={s.userName}>{h.name}</td>
                         <td>{h.city}</td>
                         <td><span className={s.badge} style={{ background: "#ede9fe", color: "#6d28d9" }}>{h.type}</span></td>
-                        <td>⭐ {h.rating}</td>
+                        <td><span className={APPROVAL_MAP[h.approvalStatus]?.[1]}>{APPROVAL_MAP[h.approvalStatus]?.[0] || h.approvalStatus}</span></td>
                         <td>{h.rooms?.length || 0}</td>
                         <td>{h._count?.bookings ?? 0}</td>
                         <td>
+                          <button className={s.editBtn} onClick={() => setPreview({ type: "hotel", data: h })}>Xem</button>
                           <button className={s.editBtn} onClick={() => openEdit("hotel", h)}><Pencil size={12} /></button>
-                          <button className={s.deleteBtn} onClick={() => handleDelete("hotel", h.id)}><Trash2 size={12} /></button>
+                          {h.approvalStatus === "PENDING_REVIEW" && <button className={s.confirmBtn} onClick={() => updateHotelApproval(h.id, "APPROVED")}>Duyệt</button>}
+                          {h.approvalStatus === "PENDING_REVIEW" && <button className={s.cancelBtn} onClick={() => updateHotelApproval(h.id, "REJECTED")}>Từ chối</button>}
+                          <button className={s.deleteBtn} onClick={() => askDelete("hotel", h.id, h.name)}><Trash2 size={12} /></button>
                         </td>
                       </tr>
                     ))}
@@ -383,64 +469,296 @@ export default function AdminPage() {
       {/* MODAL */}
       {modal && (
         <div className={s.modalOverlay} onClick={() => setModal(null)}>
-          <div className={s.modal} onClick={e => e.stopPropagation()}>
-            <h2 className={s.modalTitle}>
-              {modal.mode === "create" ? "Thêm" : "Sửa"} {modal.type === "tour" ? "Tour" : modal.type === "hotel" ? "Homestay" : "Người dùng"}
-            </h2>
-            
+          <div className={s.modal} onClick={e => e.stopPropagation()} style={{ width: 640, maxWidth: "94vw" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+              <h2 className={s.modalTitle} style={{ margin: 0 }}>
+                {modal.mode === "create" ? "✨ Thêm" : "✏️ Chỉnh sửa"} {modal.type === "tour" ? "Tour" : modal.type === "hotel" ? "Homestay" : "Người dùng"}
+              </h2>
+              <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer", padding: 4 }}>✕</button>
+            </div>
+
             {modal.type === "user" ? (<>
-              <div className={s.formGroup}><label className={s.formLabel}>Tên</label><input className={s.formInput} value={form.name || ""} onChange={F("name")} placeholder="Họ và tên..." /></div>
-              <div className={s.formRow}>
-                <div className={s.formGroup}><label className={s.formLabel}>Email</label><input className={s.formInput} value={form.email || ""} onChange={F("email")} placeholder="example@gmail.com" /></div>
-                <div className={s.formGroup}><label className={s.formLabel}>SĐT</label><input className={s.formInput} value={form.phone || ""} onChange={F("phone")} placeholder="Số điện thoại..." /></div>
-              </div>
-              <div className={s.formRow}>
-                <div className={s.formGroup}>
-                  <label className={s.formLabel}>Vai trò</label>
-                  <select className={s.formInput} value={form.role || "USER"} onChange={F("role")}>
-                    <option value="USER">USER</option><option value="OWNER">OWNER</option><option value="ADMIN">ADMIN</option>
-                  </select>
+              {/* ===== USER FORM ===== */}
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>👤 Thông tin cá nhân</div>
+                <div className={s.formGroup}><label className={s.formLabel}>Họ và tên</label><input className={s.formInput} value={form.name || ""} onChange={F("name")} placeholder="VD: Nguyễn Văn A" /></div>
+                <div className={s.formRow}>
+                  <div className={s.formGroup}><label className={s.formLabel}>Email <span style={{ color: "#dc2626" }}>*</span></label><input className={s.formInput} value={form.email || ""} onChange={F("email")} placeholder="example@gmail.com" type="email" /></div>
+                  <div className={s.formGroup}><label className={s.formLabel}>Số điện thoại</label><input className={s.formInput} value={form.phone || ""} onChange={F("phone")} placeholder="0901234567" /></div>
                 </div>
-                <div className={s.formGroup}>
-                  <label className={s.formLabel}>{modal.mode === "create" ? "Mật khẩu" : "Mật khẩu mới (bỏ trống nếu không đổi)"}</label>
-                  <input className={s.formInput} type="password" value={form.password || ""} onChange={F("password")} placeholder="******" />
+              </div>
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#6366f1", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>🔒 Quyền & Bảo mật</div>
+                <div className={s.formRow}>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Vai trò</label>
+                    <select className={s.formInput} value={form.role || "USER"} onChange={F("role")} style={{ cursor: "pointer" }}>
+                      <option value="USER">👤 USER — Người dùng thường</option>
+                      <option value="OWNER">🏠 OWNER — Chủ dịch vụ</option>
+                      <option value="ADMIN">⚡ ADMIN — Quản trị viên</option>
+                    </select>
+                  </div>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>{modal.mode === "create" ? "Mật khẩu *" : "Đổi mật khẩu"}</label>
+                    <input className={s.formInput} type="password" value={form.password || ""} onChange={F("password")} placeholder={modal.mode === "create" ? "Tối thiểu 6 ký tự" : "Bỏ trống nếu không đổi"} />
+                    {modal.mode === "edit" && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Để trống để giữ mật khẩu hiện tại</div>}
+                  </div>
                 </div>
               </div>
             </>) : (<>
-              <div className={s.formGroup}><label className={s.formLabel}>Tên</label><input className={s.formInput} value={form.name || ""} onChange={F("name")} placeholder="Nhập tên..." /></div>
-              <div className={s.formGroup}><label className={s.formLabel}>Mô tả</label><textarea className={s.formInput} rows={3} value={form.description || ""} onChange={F("description")} placeholder="Mô tả..." style={{ resize: "vertical" }} /></div>
-              {modal.type === "tour" ? (<>
-                <div className={s.formRow}>
-                  <div className={s.formGroup}><label className={s.formLabel}>Địa điểm</label><input className={s.formInput} value={form.location || ""} onChange={F("location")} /></div>
-                  <div className={s.formGroup}><label className={s.formLabel}>Giá (VNĐ)</label><input className={s.formInput} type="number" value={form.basePrice || ""} onChange={F("basePrice")} /></div>
-                </div>
-                <div className={s.formRow}>
-                  <div className={s.formGroup}><label className={s.formLabel}>Số ngày</label><input className={s.formInput} type="number" value={form.durationDays || ""} onChange={F("durationDays")} /></div>
-                  <div className={s.formGroup}><label className={s.formLabel}>Số đêm</label><input className={s.formInput} type="number" value={form.durationNights || ""} onChange={F("durationNights")} /></div>
-                </div>
-              </>) : (<>
-                <div className={s.formRow}>
-                  <div className={s.formGroup}><label className={s.formLabel}>Địa chỉ</label><input className={s.formInput} value={form.address || ""} onChange={F("address")} /></div>
-                  <div className={s.formGroup}><label className={s.formLabel}>Thành phố</label><input className={s.formInput} value={form.city || ""} onChange={F("city")} /></div>
+              {/* ===== TOUR / HOTEL FORM ===== */}
+              {/* Section 1: Thông tin cơ bản */}
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+                  {modal.type === "tour" ? "🗺️ Thông tin tour" : "🏡 Thông tin lưu trú"}
                 </div>
                 <div className={s.formGroup}>
-                  <label className={s.formLabel}>Loại</label>
-                  <select className={s.formInput} value={form.type || "HOMESTAY"} onChange={F("type")}>
-                    <option value="HOMESTAY">Homestay</option><option value="HOTEL">Hotel</option><option value="VILLA">Villa</option><option value="RESORT">Resort</option>
-                  </select>
+                  <label className={s.formLabel}>Tên {modal.type === "tour" ? "tour" : "homestay"} <span style={{ color: "#dc2626" }}>*</span></label>
+                  <input className={s.formInput} value={form.name || ""} onChange={F("name")} placeholder={modal.type === "tour" ? "VD: Khám phá Hà Giang Loop" : "VD: Sapa Highland Eco-Lodge"} />
                 </div>
-              </>)}
+                <div className={s.formGroup}>
+                  <label className={s.formLabel}>Mô tả chi tiết</label>
+                  <textarea className={s.formInput} rows={4} value={form.description || ""} onChange={F("description")} placeholder="Mô tả hấp dẫn, chi tiết về dịch vụ..." style={{ resize: "vertical", lineHeight: 1.6 }} />
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                    <span style={{ fontSize: 11, color: (form.description?.length || 0) > 500 ? "#059669" : "#94a3b8" }}>{form.description?.length || 0} ký tự</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Chi tiết */}
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#6366f1", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>
+                  {modal.type === "tour" ? "📍 Lịch trình & Giá" : "📍 Vị trí & Phân loại"}
+                </div>
+                {modal.type === "tour" ? (<>
+                  <div className={s.formRow}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Địa điểm <span style={{ color: "#dc2626" }}>*</span></label>
+                      <input className={s.formInput} value={form.location || ""} onChange={F("location")} placeholder="VD: Hà Giang, Sapa, Đà Nẵng" />
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Giá cơ bản (VNĐ) <span style={{ color: "#dc2626" }}>*</span></label>
+                      <input className={s.formInput} type="number" value={form.basePrice || ""} onChange={F("basePrice")} placeholder="VD: 2500000" />
+                      {form.basePrice && <div style={{ fontSize: 11, color: "#0d9488", marginTop: 4, fontWeight: 600 }}>= {fmt(form.basePrice)}₫</div>}
+                    </div>
+                  </div>
+                  <div className={s.formRow}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Số ngày</label>
+                      <input className={s.formInput} type="number" min="1" value={form.durationDays || ""} onChange={F("durationDays")} placeholder="VD: 3" />
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Số đêm</label>
+                      <input className={s.formInput} type="number" min="0" value={form.durationNights || ""} onChange={F("durationNights")} placeholder="VD: 2" />
+                    </div>
+                  </div>
+                  {/* Includes / Excludes */}
+                  <div className={s.formRow} style={{ marginTop: 8 }}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Bao gồm (mỗi dòng 1 mục)</label>
+                      <textarea className={s.formInput} rows={3} value={Array.isArray(form.includes) ? form.includes.join("\n") : (form.includesText || "")} onChange={e => setForm(p => ({ ...p, includesText: e.target.value, includes: e.target.value.split("\n").filter(Boolean) }))} placeholder={"Xe di chuyển\nKhách sạn\nBữa ăn"} style={{ resize: "vertical", fontSize: 13 }} />
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Không bao gồm</label>
+                      <textarea className={s.formInput} rows={3} value={Array.isArray(form.excludes) ? form.excludes.join("\n") : (form.excludesText || "")} onChange={e => setForm(p => ({ ...p, excludesText: e.target.value, excludes: e.target.value.split("\n").filter(Boolean) }))} placeholder={"Chi phí cá nhân\nĐồ uống"} style={{ resize: "vertical", fontSize: 13 }} />
+                    </div>
+                  </div>
+                </>) : (<>
+                  <div className={s.formRow}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Địa chỉ <span style={{ color: "#dc2626" }}>*</span></label>
+                      <input className={s.formInput} value={form.address || ""} onChange={F("address")} placeholder="VD: 122 Nguyễn Thái Học" />
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Thành phố <span style={{ color: "#dc2626" }}>*</span></label>
+                      <input className={s.formInput} value={form.city || ""} onChange={F("city")} placeholder="VD: Đà Lạt, Sapa, Hội An" />
+                    </div>
+                  </div>
+                  <div className={s.formRow}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Loại hình</label>
+                      <select className={s.formInput} value={form.type || "HOMESTAY"} onChange={F("type")} style={{ cursor: "pointer" }}>
+                        <option value="HOMESTAY">🏡 Homestay</option>
+                        <option value="HOTEL">🏨 Hotel</option>
+                        <option value="VILLA">🏠 Villa</option>
+                        <option value="RESORT">🏖️ Resort</option>
+                      </select>
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Quốc gia</label>
+                      <input className={s.formInput} value={form.country || "Việt Nam"} onChange={F("country")} />
+                    </div>
+                  </div>
+                  <div className={s.formRow}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Vĩ độ (lat)</label>
+                      <input className={s.formInput} type="number" step="0.0001" value={form.lat || ""} onChange={F("lat")} placeholder="VD: 11.9404" />
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Kinh độ (lng)</label>
+                      <input className={s.formInput} type="number" step="0.0001" value={form.lng || ""} onChange={F("lng")} placeholder="VD: 108.4583" />
+                    </div>
+                  </div>
+                </>)}
+              </div>
+
+              {/* Section 3: Hình ảnh */}
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ec4899", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>🖼️ Hình ảnh</div>
+                <div className={s.formGroup}>
+                  <label className={s.formLabel}>URL hình ảnh (mỗi dòng 1 URL)</label>
+                  <textarea className={s.formInput} rows={3} value={Array.isArray(form.images) ? form.images.join("\n") : (form.imagesText || "")} onChange={e => setForm(p => ({ ...p, imagesText: e.target.value, images: e.target.value.split("\n").filter(Boolean) }))} placeholder={"https://images.unsplash.com/photo-xxx\nhttps://images.unsplash.com/photo-yyy"} style={{ resize: "vertical", fontSize: 12, fontFamily: "monospace" }} />
+                </div>
+                {/* Image Preview */}
+                {Array.isArray(form.images) && form.images.filter(Boolean).length > 0 && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                    {form.images.filter(Boolean).slice(0, 4).map((url, i) => (
+                      <div key={i} style={{ width: 80, height: 56, borderRadius: 8, overflow: "hidden", border: "2px solid #e2e8f0", position: "relative" }}>
+                        <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={e => e.target.style.display = "none"} />
+                      </div>
+                    ))}
+                    {form.images.filter(Boolean).length > 4 && (
+                      <div style={{ width: 80, height: 56, borderRadius: 8, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#64748b" }}>+{form.images.filter(Boolean).length - 4}</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>)}
-            <div className={s.modalActions}>
-              <button className={s.modalCancelBtn} onClick={() => setModal(null)}>Huỷ</button>
-              <button className={s.modalSubmitBtn} onClick={handleSave}>{modal.mode === "create" ? "Tạo mới" : "Lưu"}</button>
+
+            {/* Actions */}
+            <div className={s.modalActions} style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+              <button className={s.modalCancelBtn} onClick={() => setModal(null)}>Huỷ bỏ</button>
+              <button className={s.modalSubmitBtn} onClick={handleSave} style={{ minWidth: 120 }}>
+                {modal.mode === "create" ? "✨ Tạo mới" : "💾 Lưu thay đổi"}
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRM */}
+      {confirmDel && (
+        <div className={s.modalOverlay} onClick={() => setConfirmDel(null)}>
+          <div className={s.modal} onClick={e => e.stopPropagation()} style={{ width: 420, textAlign: "center", padding: "36px 32px" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🗑️</div>
+            <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Xác nhận xoá</h3>
+            <p style={{ margin: "0 0 24px", color: "#64748b", fontSize: 14, lineHeight: 1.6 }}>
+              Bạn có chắc muốn xoá <strong style={{ color: "#dc2626" }}>{confirmDel.name || "mục này"}</strong>?
+              <br />Hành động này không thể hoàn tác.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button className={s.modalCancelBtn} onClick={() => setConfirmDel(null)} style={{ minWidth: 100 }}>Huỷ bỏ</button>
+              <button onClick={handleDelete} style={{ minWidth: 100, padding: "10px 22px", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", border: "none", background: "linear-gradient(135deg, #dc2626, #ef4444)", color: "#fff", boxShadow: "0 4px 12px rgba(220,38,38,0.3)" }}>Xoá ngay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {preview && (
+        <div className={s.modalOverlay} onClick={() => setPreview(null)}>
+          <div className={s.modal} onClick={e => e.stopPropagation()} style={{ width: 920, maxWidth: "94vw", maxHeight: "90vh", overflowY: "auto", padding: 0 }}>
+            <PreviewListing
+              type={preview.type}
+              item={preview.data}
+              onClose={() => setPreview(null)}
+              onApprove={() => preview.type === "hotel" ? updateHotelApproval(preview.data.id, "APPROVED") : updateTourApproval(preview.data.id, "APPROVED")}
+              onReject={() => preview.type === "hotel" ? updateHotelApproval(preview.data.id, "REJECTED") : updateTourApproval(preview.data.id, "REJECTED")}
+            />
           </div>
         </div>
       )}
 
       {/* TOAST */}
       {toast && <div className={toast.ok ? s.toastSuccess : s.toastError}>{toast.msg}</div>}
+    </div>
+  );
+}
+
+function PreviewListing({ type, item, onClose, onApprove, onReject }) {
+  const isTour = type === "tour";
+  const images = Array.isArray(item.images) && item.images.length
+    ? item.images
+    : [isTour ? "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=1200&q=80" : "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=1200&q=80"];
+  const approval = APPROVAL_MAP[item.approvalStatus] || [item.approvalStatus, s.badgeUser];
+
+  return (
+    <div style={{ background: "#fff", color: "#0f172a" }}>
+      <div style={{ position: "relative", height: 360, overflow: "hidden", borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+        <img src={images[0]} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(15,23,42,0.2), rgba(15,23,42,0.82))" }} />
+        <button onClick={onClose} style={{ position: "absolute", top: 18, right: 18, background: "rgba(255,255,255,0.92)", border: "none", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 800 }}>Đóng</button>
+        <div style={{ position: "absolute", left: 32, right: 32, bottom: 28 }}>
+          <span className={approval[1]}>{approval[0]}</span>
+          <h2 style={{ margin: "14px 0 8px", color: "#fff", fontSize: 34, fontWeight: 900, lineHeight: 1.15 }}>{item.name}</h2>
+          <div style={{ color: "rgba(255,255,255,0.9)", fontWeight: 700 }}>
+            {isTour ? `${item.location} • ${item.durationDays} ngày ${item.durationNights || 0} đêm` : `${item.address}, ${item.city}, ${item.country}`}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: 32, display: "grid", gridTemplateColumns: "1.5fr 0.9fr", gap: 28 }}>
+        <div>
+          <h3 style={{ margin: "0 0 12px", fontSize: 20, fontWeight: 900 }}>Nội dung hiển thị công khai</h3>
+          <p style={{ color: "#475569", lineHeight: 1.75, fontSize: 15, whiteSpace: "pre-line" }}>{item.description || "Chưa có mô tả."}</p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, margin: "22px 0" }}>
+            {images.slice(0, 4).map((img, index) => (
+              <img key={index} src={img} alt="" style={{ width: "100%", height: 86, objectFit: "cover", borderRadius: 10 }} />
+            ))}
+          </div>
+
+          {isTour ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <PreviewList title="Bao gồm" items={item.includes} />
+              <PreviewList title="Không bao gồm" items={item.excludes} />
+            </div>
+          ) : (
+            <div>
+              <h3 style={{ margin: "24px 0 12px", fontSize: 18, fontWeight: 900 }}>Phòng</h3>
+              <div style={{ display: "grid", gap: 10 }}>
+                {(item.rooms || []).length === 0 && <div style={{ color: "#64748b" }}>Chưa có phòng.</div>}
+                {(item.rooms || []).map(room => (
+                  <div key={room.id} style={{ display: "flex", justifyContent: "space-between", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
+                    <strong>{room.name}</strong>
+                    <span style={{ color: "#0d9488", fontWeight: 900 }}>{fmt(room.basePrice)}₫/đêm</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <aside style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: 20, height: "fit-content", background: "#f8fafc" }}>
+          <div style={{ fontSize: 13, color: "#64748b", fontWeight: 800, textTransform: "uppercase", marginBottom: 8 }}>Thông tin duyệt</div>
+          <div style={{ fontSize: 28, color: "#0d9488", fontWeight: 900, marginBottom: 8 }}>{fmt(item.basePrice || item.rooms?.[0]?.basePrice)}₫</div>
+          <div style={{ color: "#475569", fontWeight: 700, marginBottom: 16 }}>{isTour ? "Giá mỗi khách" : "Giá tham khảo mỗi đêm"}</div>
+          <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 16, marginTop: 16 }}>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Owner</div>
+            <div style={{ color: "#475569" }}>{item.owner?.name || "Admin"}</div>
+            <div style={{ color: "#64748b", fontSize: 13 }}>{item.owner?.email}</div>
+          </div>
+          {item.approvalStatus === "REJECTED" && item.approvalNote && (
+            <div style={{ marginTop: 16, color: "#b91c1c", background: "#fef2f2", borderRadius: 10, padding: 12, fontWeight: 700 }}>{item.approvalNote}</div>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <button className={s.confirmBtn} onClick={onApprove} disabled={item.approvalStatus === "APPROVED"}>Duyệt</button>
+            <button className={s.cancelBtn} onClick={onReject}>Từ chối</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function PreviewList({ title, items }) {
+  const list = Array.isArray(items) ? items : [];
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
+      <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 900 }}>{title}</h3>
+      {list.length === 0 ? <div style={{ color: "#94a3b8" }}>Chưa cập nhật</div> : list.map((item, index) => (
+        <div key={index} style={{ color: "#475569", marginBottom: 8, fontWeight: 600 }}>• {item}</div>
+      ))}
     </div>
   );
 }

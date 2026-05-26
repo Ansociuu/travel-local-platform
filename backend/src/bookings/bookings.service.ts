@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { HotelApprovalStatus, TourApprovalStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
@@ -23,6 +24,20 @@ export class BookingsService {
 
     // Generate short ID e.g., MT-A1B2C3
     const shortId = 'MT-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    if (hotelId) {
+      const hotel = await this.prisma.hotel.findUnique({ where: { id: hotelId } });
+      if (!hotel || hotel.approvalStatus !== HotelApprovalStatus.APPROVED) {
+        throw new NotFoundException('Homestay not found');
+      }
+    }
+
+    if (tourId) {
+      const tour = await this.prisma.tour.findUnique({ where: { id: tourId } });
+      if (!tour || tour.approvalStatus !== TourApprovalStatus.APPROVED) {
+        throw new NotFoundException('Tour not found');
+      }
+    }
 
     const booking = await this.prisma.booking.create({
       data: {

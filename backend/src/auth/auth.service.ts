@@ -88,7 +88,10 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { email },
-      data: { isVerified: true },
+      data: {
+        isVerified: true,
+        emailVerified: new Date(),
+      },
     });
 
     const user = await this.usersService.findByEmail(email);
@@ -123,10 +126,6 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
-    if (!user.isVerified) {
-      throw new UnauthorizedException('Tài khoản của bạn chưa được xác thực email.');
-    }
-
     const payload = { email: user.email, sub: user.id, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
@@ -136,6 +135,8 @@ export class AuthService {
         name: user.name,
         role: user.role,
         avatar: user.avatar,
+        isVerified: user.isVerified,
+        emailVerified: user.emailVerified,
       },
     };
   }
@@ -213,6 +214,7 @@ export class AuthService {
           avatar: picture,
           password: '', // Social users don't have a local password initially
           isVerified: true, // Social accounts are trusted
+          emailVerified: new Date(),
         },
       });
 
@@ -238,6 +240,8 @@ export class AuthService {
         name: user.name,
         role: user.role,
         avatar: user.avatar,
+        isVerified: user.isVerified,
+        emailVerified: user.emailVerified,
       },
     };
   }
@@ -288,6 +292,7 @@ export class AuthService {
           name: `${firstName} ${lastName}`,
           password: '',
           isVerified: true,
+          emailVerified: new Date(),
         },
       });
 
@@ -304,6 +309,8 @@ export class AuthService {
         name: user.name,
         role: user.role,
         avatar: user.avatar,
+        isVerified: user.isVerified,
+        emailVerified: user.emailVerified,
       },
     };
   }

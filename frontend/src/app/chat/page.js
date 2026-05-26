@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Send, Search, ArrowLeft, MessageCircle } from "lucide-react";
 import s from "./chat.module.css";
@@ -31,7 +31,16 @@ const getDateLabel = (d) => {
 };
 
 export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className={s.chatLayout}></div>}>
+      <ChatPageContent />
+    </Suspense>
+  );
+}
+
+function ChatPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [activeConv, setActiveConv] = useState(null);
@@ -42,8 +51,12 @@ export default function ChatPage() {
   const [searching, setSearching] = useState(false);
   const [typing, setTyping] = useState(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+  const [messagesError, setMessagesError] = useState("");
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
+  const appliedQueryConversationId = useRef("");
+  const queryConversationId = searchParams?.get("conversationId") || "";
+  const activeConversationId = activeConv?.id || "";
 
   // Auth check
   useEffect(() => {
@@ -121,25 +134,60 @@ export default function ChatPage() {
     chatApi.getConversations().then(setConversations).catch(console.error);
   }, [user]);
 
+  useEffect(() => {
+    if (!queryConversationId) {
+      appliedQueryConversationId.current = "";
+      return;
+    }
+    if (appliedQueryConversationId.current === queryConversationId || conversations.length === 0) return;
+
+    const found = conversations.find((conv) => conv.id === queryConversationId);
+    if (found) {
+      appliedQueryConversationId.current = queryConversationId;
+      if (activeConversationId !== queryConversationId) setActiveConv(found);
+      setMobileShowChat(true);
+    }
+  }, [queryConversationId, activeConversationId, conversations]);
+
   // Load messages when active conversation changes
   useEffect(() => {
-    if (!activeConv) return;
-    chatApi.getMessages(activeConv.id).then(setMessages).catch(console.error);
+    if (!activeConversationId) return;
+    let cancelled = false;
+    setMessagesError("");
+    chatApi.getMessages(activeConversationId)
+      .then((data) => {
+        if (!cancelled) setMessages(data);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setMessages([]);
+          setMessagesError(error.message || "Không tải được tin nhắn. Vui lòng thử lại.");
+        }
+      });
 
     const sock = getSocket();
     if (sock) {
-      sock.emit("joinConversation", { conversationId: activeConv.id });
+      sock.emit("joinConversation", { conversationId: activeConversationId });
     }
 
     // Mark as read
-    setConversations((prev) =>
-      prev.map((c) => c.id === activeConv.id ? { ...c, unreadCount: 0 } : c)
-    );
+    setConversations((prev) => {
+      let changed = false;
+      const next = prev.map((c) => {
+        if (c.id === activeConversationId && c.unreadCount > 0) {
+          changed = true;
+          return { ...c, unreadCount: 0 };
+        }
+        return c;
+      });
+      return changed ? next : prev;
+    });
 
     return () => {
-      if (sock) sock.emit("leaveConversation", { conversationId: activeConv.id });
+      cancelled = true;
+      if (sock) sock.emit("leaveConversation", { conversationId: activeConversationId });
     };
-  }, [activeConv]);
+  }, [activeConversationId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -330,6 +378,7 @@ export default function ChatPage() {
           </div>
 
           <div className={s.messagesArea}>
+            {messagesError && <div className={s.messageError}>{messagesError}</div>}
             {groupedMessages.map((item, i) => {
               if (item.type === "date") {
                 return (

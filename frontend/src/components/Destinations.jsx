@@ -2,19 +2,53 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import StarRating from "./StarRating";
-import { allDestinations, regionFilters } from "../data/mockData";
+import { toursApi } from "@/lib/api";
 import { Heart, MapPin, Moon } from "lucide-react";
+
+const regionFilters = [
+  { key: "all", label: "Tất cả" },
+  { key: "bac", label: "Miền Bắc" },
+  { key: "trung", label: "Miền Trung" },
+  { key: "nam", label: "Miền Nam" },
+];
+
+const regionOf = (location = "") => {
+  if (["Hà Giang", "Sapa", "Hạ Long", "Cát Bà", "Ninh Bình", "Tà Xùa"].some((key) => location.includes(key))) return "bac";
+  if (["Đà Nẵng", "Hội An", "Huế", "Đà Lạt", "Quảng Nam"].some((key) => location.includes(key))) return "trung";
+  if (["Cần Thơ", "Sài Gòn", "Phú Quốc", "Mekong"].some((key) => location.includes(key))) return "nam";
+  return "all";
+};
 
 export default function Destinations() {
   const router = useRouter();
   const [regionFilter, setRegionFilter] = useState("all");
   const [visibleCards, setVisibleCards] = useState({});
   const [wishlist, setWishlist] = useState({});
+  const [destinations, setDestinations] = useState([]);
   const cardRefs = useRef({});
 
   const filteredDestinations = regionFilter === "all"
-    ? allDestinations
-    : allDestinations.filter(d => d.region === regionFilter);
+    ? destinations
+    : destinations.filter(d => d.region === regionFilter);
+
+  useEffect(() => {
+    toursApi.getAll()
+      .then((data) => {
+        setDestinations(data.slice(0, 8).map((tour, index) => ({
+          id: tour.id,
+          name: tour.name,
+          country: tour.location,
+          region: regionOf(tour.location),
+          price: Number(tour.basePrice || 0).toLocaleString("vi-VN"),
+          nights: tour.durationNights || Math.max(0, (tour.durationDays || 1) - 1),
+          rating: tour.rating || 0,
+          reviews: tour.reviewCount || 0,
+          tag: ["Bestseller", "Hot", "New", "Luxury"][index % 4],
+          img: Array.isArray(tour.images) && tour.images.length ? tour.images[0] : "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=600&q=80",
+        })));
+      })
+      .catch(() => setDestinations([]));
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

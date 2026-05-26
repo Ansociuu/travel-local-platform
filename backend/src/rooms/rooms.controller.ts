@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { RoomsService, CreateRoomDto } from './rooms.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -9,7 +9,7 @@ export class RoomsController {
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Body() createRoomDto: CreateRoomDto, @Request() req) {
-    return this.roomsService.create(createRoomDto, req.user.sub);
+    return this.roomsService.create(createRoomDto, req.user.id);
   }
 
   @Get('hotel/:hotelId')
@@ -25,12 +25,12 @@ export class RoomsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   update(@Param('id') id: string, @Body() updateData: any, @Request() req) {
-    return this.roomsService.update(id, updateData, req.user.sub);
+    return this.roomsService.update(id, updateData, req.user.id);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string, @Request() req) {
-    return this.roomsService.remove(id, req.user.sub);
+    return this.roomsService.remove(id, req.user.id);
   }
 }

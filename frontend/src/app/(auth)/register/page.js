@@ -49,6 +49,7 @@ export default function RegisterPage() {
       const data = await authApi.verifyOtp(email, otp);
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      window.dispatchEvent(new Event("auth-session-changed"));
       
       setIsVerified(true);
       

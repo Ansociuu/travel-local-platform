@@ -1,14 +1,37 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { homestays } from "../data/mockData";
+import { hotelsApi } from "@/lib/api";
 import { Heart, MapPin, Bed, Bath, Users, Star } from "lucide-react";
 
 export default function Homestays() {
   const router = useRouter();
   const [visibleCards, setVisibleCards] = useState({});
   const [wishlist, setWishlist] = useState({});
+  const [homestays, setHomestays] = useState([]);
   const cardRefs = useRef({});
+
+  useEffect(() => {
+    hotelsApi.getAll()
+      .then((data) => {
+        setHomestays(data.slice(0, 3).map((hotel) => {
+          const firstRoom = hotel.rooms?.[0];
+          return {
+            id: hotel.id,
+            name: hotel.name,
+            location: hotel.city,
+            price: Number(firstRoom?.basePrice || 0).toLocaleString("vi-VN"),
+            per: "đêm",
+            rating: hotel.rating || 0,
+            beds: hotel.rooms?.length || 1,
+            baths: 1,
+            guests: firstRoom?.capacity || 2,
+            img: Array.isArray(hotel.images) && hotel.images.length ? hotel.images[0] : "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=500&q=80",
+          };
+        }));
+      })
+      .catch(() => setHomestays([]));
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -19,7 +42,7 @@ export default function Homestays() {
     );
     Object.values(cardRefs.current).forEach(el => el && observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+  }, [homestays]);
 
   const toggleWishlist = (id) => setWishlist(p => ({ ...p, [id]: !p[id] }));
 
@@ -59,11 +82,11 @@ export default function Homestays() {
                 <h3 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "16px", color: "#0f172a" }}>{h.name}</h3>
                 <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
                   {[
-                    [<Bed size={14} color="#64748b" />, h.beds + " phòng ngủ"], 
-                    [<Bath size={14} color="#64748b" />, h.baths + " WC"], 
-                    [<Users size={14} color="#64748b" />, h.guests + " khách"]
-                  ].map(([icon, text], j) => (
-                    <span key={j} style={{ fontSize: "13px", color: "#475569", display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}>{icon} {text}</span>
+                    { Icon: Bed, text: h.beds + " phòng ngủ" },
+                    { Icon: Bath, text: h.baths + " WC" },
+                    { Icon: Users, text: h.guests + " khách" }
+                  ].map(({ Icon, text }, j) => (
+                    <span key={j} style={{ fontSize: "13px", color: "#475569", display: "flex", alignItems: "center", gap: "6px", fontWeight: 500 }}><Icon size={14} color="#64748b" /> {text}</span>
                   ))}
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "20px", borderTop: "1px solid rgba(0,0,0,0.05)" }}>

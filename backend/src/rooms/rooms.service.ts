@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { HotelApprovalStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class CreateRoomDto {
@@ -25,9 +26,16 @@ export class RoomsService {
   async create(createRoomDto: CreateRoomDto, ownerId: string) {
     await this.verifyHotelOwner(createRoomDto.hotelId, ownerId);
     
-    return this.prisma.room.create({
+    const room = await this.prisma.room.create({
       data: createRoomDto,
     });
+
+    await this.prisma.hotel.update({
+      where: { id: createRoomDto.hotelId },
+      data: { approvalStatus: HotelApprovalStatus.PENDING_REVIEW, approvalNote: null, reviewedAt: null },
+    });
+
+    return room;
   }
 
   async findAllByHotel(hotelId: string) {
@@ -61,10 +69,17 @@ export class RoomsService {
       throw new UnauthorizedException('Bạn không có quyền chỉnh sửa phòng này');
     }
 
-    return this.prisma.room.update({
+    const updated = await this.prisma.room.update({
       where: { id },
       data: updateData,
     });
+
+    await this.prisma.hotel.update({
+      where: { id: room.hotelId },
+      data: { approvalStatus: HotelApprovalStatus.PENDING_REVIEW, approvalNote: null, reviewedAt: null },
+    });
+
+    return updated;
   }
 
   async remove(id: string, ownerId: string) {
@@ -73,8 +88,20 @@ export class RoomsService {
       throw new UnauthorizedException('Bạn không có quyền xóa phòng này');
     }
 
-    return this.prisma.room.delete({
+    const bookingRooms = await this.prisma.bookingRoom.count({ where: { roomId: id } });
+    if (bookingRooms > 0) {
+      throw new UnauthorizedException('Không thể xóa phòng đã từng có booking');
+    }
+
+    const deleted = await this.prisma.room.delete({
       where: { id },
     });
+
+    await this.prisma.hotel.update({
+      where: { id: room.hotelId },
+      data: { approvalStatus: HotelApprovalStatus.PENDING_REVIEW, approvalNote: null, reviewedAt: null },
+    });
+
+    return deleted;
   }
 }

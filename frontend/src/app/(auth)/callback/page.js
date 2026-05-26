@@ -15,6 +15,7 @@ function AuthCallbackHandler() {
       try {
         localStorage.setItem("token", token);
         localStorage.setItem("user", user); // user is already stringified from backend
+        window.dispatchEvent(new Event("auth-session-changed"));
         
         // Success! Redirect to home
         router.push("/");

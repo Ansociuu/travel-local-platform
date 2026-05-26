@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Plane, Menu, X, MessageCircle } from "lucide-react";
+import { Plane, Menu, X, MessageCircle, Home } from "lucide-react";
 
 export default function Navbar({ theme = "default" }) {
   const pathname = usePathname();
@@ -18,17 +18,23 @@ export default function Navbar({ theme = "default" }) {
     };
     window.addEventListener("scroll", onScroll);
     
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const timer = window.setTimeout(() => {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    }, 0);
 
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    window.dispatchEvent(new Event("auth-session-changed"));
     setUser(null);
     router.push("/");
   };
@@ -71,6 +77,11 @@ export default function Navbar({ theme = "default" }) {
             {user.role === "ADMIN" && (
               <Link href="/admin" style={{ textDecoration: "none", background: "linear-gradient(135deg, #0d9488, #14b8a6)", color: "#fff", padding: "7px 16px", borderRadius: "10px", fontSize: "13px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s", boxShadow: "0 4px 12px rgba(20,184,166,0.3)", display: "flex", alignItems: "center", gap: "6px" }}>
                 ⚙ Quản trị
+              </Link>
+            )}
+            {user.role === "OWNER" && (
+              <Link href="/owner" style={{ textDecoration: "none", background: "linear-gradient(135deg, #0d9488, #14b8a6)", color: "#fff", padding: "7px 16px", borderRadius: "10px", fontSize: "13px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s", boxShadow: "0 4px 12px rgba(20,184,166,0.3)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Home size={14} /> Quản lý homestay
               </Link>
             )}
             <Link href="/chat" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "10px", background: scrolled ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.12)", transition: "all 0.2s", textDecoration: "none" }} title="Tin nhắn">

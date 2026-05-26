@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { HotelApprovalStatus, OwnerApplicationStatus, TourApprovalStatus, TourRegion, TourType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -29,11 +30,14 @@ export class AdminService {
       completedBookings,
       newUsersThisMonth,
       revenueThisMonth,
+      pendingOwnerApplications,
+      pendingHotels,
+      pendingTours,
     ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.booking.count(),
       this.prisma.tour.count(),
-      this.prisma.hotel.count(),
+      this.prisma.hotel.count({ where: { approvalStatus: { not: HotelApprovalStatus.ARCHIVED } } }),
       this.prisma.booking.aggregate({
         where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
         _sum: { totalAmount: true },
@@ -58,6 +62,9 @@ export class AdminService {
         },
         _sum: { totalAmount: true },
       }),
+      this.prisma.ownerApplication.count({ where: { status: OwnerApplicationStatus.PENDING } }),
+      this.prisma.hotel.count({ where: { approvalStatus: HotelApprovalStatus.PENDING_REVIEW } }),
+      this.prisma.tour.count({ where: { approvalStatus: TourApprovalStatus.PENDING_REVIEW } }),
     ]);
 
     // Monthly revenue for chart (last 6 months)
@@ -95,8 +102,61 @@ export class AdminService {
       completedBookings,
       newUsersThisMonth,
       revenueThisMonth: Number(revenueThisMonth._sum.totalAmount || 0),
+      pendingOwnerApplications,
+      pendingHotels,
+      pendingTours,
       monthlyRevenue,
     };
+  }
+
+  // ===================== OWNER APPLICATIONS =====================
+
+  async getOwnerApplications(userId: string) {
+    await this.assertAdmin(userId);
+    return this.prisma.ownerApplication.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true, phone: true, role: true, isVerified: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateOwnerApplicationStatus(
+    userId: string,
+    applicationId: string,
+    status: string,
+    rejectionReason?: string,
+  ) {
+    await this.assertAdmin(userId);
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+      throw new BadRequestException('Trạng thái hồ sơ không hợp lệ');
+    }
+
+    const application = await this.prisma.ownerApplication.findUnique({ where: { id: applicationId } });
+    if (!application) throw new NotFoundException('Hồ sơ đối tác không tồn tại');
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.ownerApplication.update({
+        where: { id: applicationId },
+        data: {
+          status: status as OwnerApplicationStatus,
+          rejectionReason: status === 'REJECTED' ? rejectionReason || null : null,
+          reviewedAt: new Date(),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true, role: true, isVerified: true } },
+        },
+      });
+
+      if (status === 'APPROVED') {
+        await tx.user.update({
+          where: { id: application.userId },
+          data: { role: 'OWNER' },
+        });
+      }
+
+      return updated;
+    });
   }
 
   // ===================== BOOKINGS =====================
@@ -163,6 +223,7 @@ export class AdminService {
           phone: data.phone || '',
           role: data.role || 'USER',
           isVerified: true,
+          emailVerified: new Date(),
         },
         select: { id: true, name: true, email: true, role: true, phone: true }
       });
@@ -261,8 +322,11 @@ export class AdminService {
   async getAllTours(userId: string) {
     await this.assertAdmin(userId);
     return this.prisma.tour.findMany({
+      where: { approvalStatus: { not: TourApprovalStatus.ARCHIVED } },
       include: {
-        owner: { select: { name: true, email: true } },
+        itineraries: { orderBy: { dayNumber: 'asc' } },
+        availability: { orderBy: { startDate: 'asc' } },
+        owner: { select: { name: true, email: true, avatar: true } },
         _count: { select: { bookings: true, reviews: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -276,6 +340,8 @@ export class AdminService {
         name: data.name,
         description: data.description || '',
         location: data.location || '',
+        type: Object.values(TourType).includes(data.type) ? data.type : TourType.CULTURE,
+        region: Object.values(TourRegion).includes(data.region) ? data.region : TourRegion.BAC,
         durationDays: parseInt(data.durationDays) || 1,
         durationNights: parseInt(data.durationNights) || 0,
         basePrice: parseFloat(data.basePrice) || 0,
@@ -283,6 +349,8 @@ export class AdminService {
         includes: data.includes || [],
         excludes: data.excludes || [],
         ownerId: userId,
+        approvalStatus: TourApprovalStatus.APPROVED,
+        reviewedAt: new Date(),
       },
     });
   }
@@ -296,19 +364,53 @@ export class AdminService {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.location !== undefined) updateData.location = data.location;
+    if (data.type !== undefined && Object.values(TourType).includes(data.type)) updateData.type = data.type;
+    if (data.region !== undefined && Object.values(TourRegion).includes(data.region)) updateData.region = data.region;
     if (data.durationDays !== undefined) updateData.durationDays = parseInt(data.durationDays);
     if (data.durationNights !== undefined) updateData.durationNights = parseInt(data.durationNights);
     if (data.basePrice !== undefined) updateData.basePrice = parseFloat(data.basePrice);
     if (data.images !== undefined) updateData.images = data.images;
+    if (data.includes !== undefined) updateData.includes = data.includes;
+    if (data.excludes !== undefined) updateData.excludes = data.excludes;
 
     return this.prisma.tour.update({ where: { id: tourId }, data: updateData });
+  }
+
+  async updateTourApproval(userId: string, tourId: string, status: string, note?: string) {
+    await this.assertAdmin(userId);
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+      throw new BadRequestException('Tráº¡ng thÃ¡i duyá»‡t tour khÃ´ng há»£p lá»‡');
+    }
+
+    const tour = await this.prisma.tour.findUnique({ where: { id: tourId } });
+    if (!tour || tour.approvalStatus === TourApprovalStatus.ARCHIVED) {
+      throw new NotFoundException('Tour khÃ´ng tá»“n táº¡i');
+    }
+
+    return this.prisma.tour.update({
+      where: { id: tourId },
+      data: {
+        approvalStatus: status as TourApprovalStatus,
+        approvalNote: note || null,
+        reviewedAt: new Date(),
+      },
+      include: {
+        itineraries: { orderBy: { dayNumber: 'asc' } },
+        availability: { orderBy: { startDate: 'asc' } },
+        owner: { select: { name: true, email: true, avatar: true } },
+        _count: { select: { bookings: true, reviews: true } },
+      },
+    });
   }
 
   async deleteTour(userId: string, tourId: string) {
     await this.assertAdmin(userId);
     const tour = await this.prisma.tour.findUnique({ where: { id: tourId } });
     if (!tour) throw new NotFoundException('Tour không tồn tại');
-    return this.prisma.tour.delete({ where: { id: tourId } });
+    return this.prisma.tour.update({
+      where: { id: tourId },
+      data: { approvalStatus: TourApprovalStatus.ARCHIVED },
+    });
   }
 
   // ===================== HOTELS/HOMESTAYS CRUD =====================
@@ -316,6 +418,7 @@ export class AdminService {
   async getAllHotels(userId: string) {
     await this.assertAdmin(userId);
     return this.prisma.hotel.findMany({
+      where: { approvalStatus: { not: HotelApprovalStatus.ARCHIVED } },
       include: {
         rooms: { select: { id: true, name: true, basePrice: true } },
         owner: { select: { name: true, email: true } },
@@ -337,6 +440,8 @@ export class AdminService {
         type: data.type || 'HOMESTAY',
         images: data.images || [],
         ownerId: userId,
+        approvalStatus: HotelApprovalStatus.APPROVED,
+        reviewedAt: new Date(),
       },
     });
   }
@@ -353,8 +458,38 @@ export class AdminService {
     if (data.city !== undefined) updateData.city = data.city;
     if (data.type !== undefined) updateData.type = data.type;
     if (data.images !== undefined) updateData.images = data.images;
+    if (data.policies !== undefined) updateData.policies = data.policies;
+    if (data.country !== undefined) updateData.country = data.country;
+    if (data.lat !== undefined) updateData.lat = parseFloat(data.lat);
+    if (data.lng !== undefined) updateData.lng = parseFloat(data.lng);
 
     return this.prisma.hotel.update({ where: { id: hotelId }, data: updateData });
+  }
+
+  async updateHotelApproval(userId: string, hotelId: string, status: string, note?: string) {
+    await this.assertAdmin(userId);
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+      throw new BadRequestException('Trạng thái duyệt homestay không hợp lệ');
+    }
+
+    const hotel = await this.prisma.hotel.findUnique({ where: { id: hotelId } });
+    if (!hotel || hotel.approvalStatus === HotelApprovalStatus.ARCHIVED) {
+      throw new NotFoundException('Homestay không tồn tại');
+    }
+
+    return this.prisma.hotel.update({
+      where: { id: hotelId },
+      data: {
+        approvalStatus: status as HotelApprovalStatus,
+        approvalNote: note || null,
+        reviewedAt: new Date(),
+      },
+      include: {
+        rooms: { select: { id: true, name: true, basePrice: true } },
+        owner: { select: { name: true, email: true } },
+        _count: { select: { bookings: true, reviews: true } },
+      },
+    });
   }
 
   async deleteHotel(userId: string, hotelId: string) {

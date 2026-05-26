@@ -9,6 +9,20 @@ import SingleDatePicker from "@/components/SingleDatePicker";
 import { toursApi, wishlistApi } from "@/lib/api";
 import { Search, Filter, SlidersHorizontal, ArrowDownAZ, MapPin, Calendar, Users, Tent } from "lucide-react";
 
+const tagColorMap = { Bestseller: "#0d9488", Hot: "#d97706", New: "#059669", Luxury: "#b45309" };
+const tags = ["Bestseller", "Hot", "New", "Luxury"];
+const typeOptions = [
+  { val: "TREKKING", label: "Trekking & Khám phá" },
+  { val: "RESORT", label: "Nghỉ dưỡng" },
+  { val: "CULTURE", label: "Văn hóa bản địa" },
+  { val: "CRUISE", label: "Du thuyền" }
+];
+const regionOptions = [
+  { val: "BAC", label: "Miền Bắc" },
+  { val: "TRUNG", label: "Miền Trung" },
+  { val: "NAM", label: "Miền Nam" }
+];
+
 export default function ToursPage() {
   const router = useRouter();
   const [tours, setTours] = useState([]);
@@ -30,9 +44,6 @@ export default function ToursPage() {
 
   const filteredLocations = Array.from(new Set(tours.map(t => t.location))).filter(loc => loc.toLowerCase().includes(searchQuery.toLowerCase()) && searchQuery);
   const filteredTourNames = tours.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()) && searchQuery);
-
-  const tagColorMap = { Bestseller: "#0d9488", Hot: "#d97706", New: "#059669", Luxury: "#b45309" };
-  const tags = ["Bestseller", "Hot", "New", "Luxury"];
 
   useEffect(() => {
     const fetchTours = async () => {
@@ -98,14 +109,12 @@ export default function ToursPage() {
 
     // Region
     if (regionFilters.length > 0) {
-      const isBac = ['Hà Giang', 'Sapa', 'Hạ Long', 'Cát Bà'].some(k => tour.location.includes(k));
-      const isTrung = ['Đà Nẵng', 'Hội An', 'Huế', 'Đà Lạt'].some(k => tour.location.includes(k));
-      const isNam = ['Cần Thơ', 'Sài Gòn', 'Phú Quốc'].some(k => tour.location.includes(k));
-      let matchRegion = false;
-      if (regionFilters.includes("bac") && isBac) matchRegion = true;
-      if (regionFilters.includes("trung") && isTrung) matchRegion = true;
-      if (regionFilters.includes("nam") && isNam) matchRegion = true;
-      if (!matchRegion) return false;
+      if (!regionFilters.includes(tour.region)) return false;
+    }
+
+    // Type
+    if (typeFilters.length > 0) {
+      if (!typeFilters.includes(tour.type)) return false;
     }
 
     // Price
@@ -244,12 +253,7 @@ export default function ToursPage() {
               <div style={{ marginBottom: "24px" }}>
                 <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", marginBottom: "12px" }}>Loại hình</h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {[
-                    { val: "trekking", label: "Trekking & Khám phá" },
-                    { val: "resort", label: "Nghỉ dưỡng" },
-                    { val: "culture", label: "Văn hóa bản địa" },
-                    { val: "cruise", label: "Du thuyền" }
-                  ].map(opt => (
+                  {typeOptions.map(opt => (
                     <label key={opt.val} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#475569", cursor: "pointer", fontWeight: 500 }}>
                       <input type="checkbox" checked={typeFilters.includes(opt.val)} onChange={() => setTypeFilters(prev => prev.includes(opt.val) ? prev.filter(v => v !== opt.val) : [...prev, opt.val])} style={{ width: "16px", height: "16px", accentColor: "#0d9488", cursor: "pointer" }} />
                       {opt.label}
@@ -262,11 +266,7 @@ export default function ToursPage() {
               <div style={{ marginBottom: "24px" }}>
                 <h4 style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", marginBottom: "12px" }}>Khu vực</h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  {[
-                    { val: "bac", label: "Miền Bắc" },
-                    { val: "trung", label: "Miền Trung" },
-                    { val: "nam", label: "Miền Nam" }
-                  ].map(opt => (
+                  {regionOptions.map(opt => (
                     <label key={opt.val} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#475569", cursor: "pointer", fontWeight: 500 }}>
                       <input type="checkbox" checked={regionFilters.includes(opt.val)} onChange={() => handleRegionChange(opt.val)} style={{ width: "16px", height: "16px", accentColor: "#0d9488", cursor: "pointer" }} />
                       {opt.label}
@@ -341,7 +341,7 @@ export default function ToursPage() {
                 <Search size={48} color="#cbd5e1" style={{ margin: "0 auto 16px" }} />
                 <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>Không tìm thấy kết quả</h3>
                 <p style={{ color: "#64748b", fontSize: "14px", fontWeight: 500 }}>Thử điều chỉnh bộ lọc để xem nhiều tour hơn nhé.</p>
-                <button onClick={() => { setRegionFilters([]); setMaxPrice(10000000); setDurationFilters([]); setSearchQuery(""); }} style={{ marginTop: "20px", background: "#f8fafc", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px 20px", borderRadius: "10px", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>
+                <button onClick={() => { setTypeFilters([]); setRegionFilters([]); setMaxPrice(10000000); setDurationFilters([]); setSearchQuery(""); }} style={{ marginTop: "20px", background: "#f8fafc", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px 20px", borderRadius: "10px", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>
                   Xóa bộ lọc
                 </button>
               </div>

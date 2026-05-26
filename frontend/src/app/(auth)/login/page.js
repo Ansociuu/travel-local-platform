@@ -22,6 +22,7 @@ export default function LoginPage() {
       const data = await authApi.login(email, password);
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      window.dispatchEvent(new Event("auth-session-changed"));
       
       // Redirect to home or intended page
       router.push("/");

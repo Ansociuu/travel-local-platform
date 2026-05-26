@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { HotelType } from '@prisma/client';
+import { HotelApprovalStatus, HotelType } from '@prisma/client';
 
 export class CreateHotelDto {
   name: string;
@@ -24,13 +24,16 @@ export class HotelsService {
       data: {
         ...createHotelDto,
         ownerId,
+        approvalStatus: HotelApprovalStatus.PENDING_REVIEW,
+        approvalNote: null,
+        reviewedAt: null,
       },
     });
   }
 
   async findAll(query: any) {
     const { city, type } = query;
-    const where: any = {};
+    const where: any = { approvalStatus: HotelApprovalStatus.APPROVED };
     
     if (city) {
       where.city = { contains: city };
@@ -91,6 +94,9 @@ export class HotelsService {
     if (!hotel) {
       throw new NotFoundException('Không tìm thấy cơ sở lưu trú này');
     }
+    if (hotel.approvalStatus !== HotelApprovalStatus.APPROVED) {
+      throw new NotFoundException('Không tìm thấy cơ sở lưu trú này');
+    }
     return hotel;
   }
 
@@ -102,7 +108,12 @@ export class HotelsService {
 
     return this.prisma.hotel.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...updateData,
+        approvalStatus: HotelApprovalStatus.PENDING_REVIEW,
+        approvalNote: null,
+        reviewedAt: null,
+      },
     });
   }
 
@@ -112,8 +123,9 @@ export class HotelsService {
       throw new NotFoundException('Bạn không có quyền xóa cơ sở này');
     }
 
-    return this.prisma.hotel.delete({
+    return this.prisma.hotel.update({
       where: { id },
+      data: { approvalStatus: HotelApprovalStatus.ARCHIVED },
     });
   }
 }

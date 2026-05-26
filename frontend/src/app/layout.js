@@ -1,5 +1,6 @@
 import "./globals.css";
 import HydrationHandler from "@/components/HydrationHandler";
+import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 
 export const metadata = {
   title: "VietJourney - Đặt Tour & Homestay Cao Cấp",
@@ -13,7 +14,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="vi" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <HydrationHandler>{children}</HydrationHandler>
+        <HydrationHandler>
+          {children}
+          <EmailVerificationNotice />
+        </HydrationHandler>
       </body>
     </html>
   );

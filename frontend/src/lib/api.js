@@ -26,10 +26,22 @@ export async function apiRequest(endpoint, options = {}) {
     ...rest,
   });
 
-  const data = await response.json();
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data.message || 'Có lỗi xảy ra');
+    const message = typeof data === 'string' ? data : data?.message;
+    const error = new Error(message || 'Có lỗi xảy ra');
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return data;
@@ -64,6 +76,21 @@ export const authApi = {
   getStats: () => apiRequest('/users/stats'),
 };
 
+export const usersApi = {
+  getPublicProfile: (id) => apiRequest(`/users/${id}/profile`),
+  createPost: (data) => apiRequest('/users/me/posts', {
+    method: 'POST',
+    body: data,
+  }),
+  updatePost: (id, data) => apiRequest(`/users/me/posts/${id}`, {
+    method: 'PATCH',
+    body: data,
+  }),
+  deletePost: (id) => apiRequest(`/users/me/posts/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
 export const hotelsApi = {
   getAll: (params) => {
     const query = new URLSearchParams(params).toString();
@@ -72,12 +99,71 @@ export const hotelsApi = {
   getById: (id) => apiRequest(`/hotels/${id}`),
 };
 
+export const ownerApi = {
+  getMyApplication: () => apiRequest('/owner/applications/me'),
+  createApplication: (data) => apiRequest('/owner/applications', {
+    method: 'POST',
+    body: data,
+  }),
+  getStats: () => apiRequest('/owner/stats'),
+  getHotels: () => apiRequest('/owner/hotels'),
+  createHotel: (data) => apiRequest('/owner/hotels', {
+    method: 'POST',
+    body: data,
+  }),
+  updateHotel: (id, data) => apiRequest(`/owner/hotels/${id}`, {
+    method: 'PATCH',
+    body: data,
+  }),
+  archiveHotel: (id) => apiRequest(`/owner/hotels/${id}`, {
+    method: 'DELETE',
+  }),
+  getTours: () => apiRequest('/owner/tours'),
+  createTour: (data) => apiRequest('/owner/tours', {
+    method: 'POST',
+    body: data,
+  }),
+  updateTour: (id, data) => apiRequest(`/owner/tours/${id}`, {
+    method: 'PATCH',
+    body: data,
+  }),
+  archiveTour: (id) => apiRequest(`/owner/tours/${id}`, {
+    method: 'DELETE',
+  }),
+  getRooms: (hotelId) => apiRequest(`/owner/hotels/${hotelId}/rooms`),
+  createRoom: (hotelId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms`, {
+    method: 'POST',
+    body: data,
+  }),
+  updateRoom: (hotelId, roomId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}`, {
+    method: 'PATCH',
+    body: data,
+  }),
+  deleteRoom: (hotelId, roomId) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}`, {
+    method: 'DELETE',
+  }),
+  getBookings: () => apiRequest('/owner/bookings'),
+  updateBookingStatus: (id, status) => apiRequest(`/owner/bookings/${id}/status`, {
+    method: 'PATCH',
+    body: { status },
+  }),
+};
+
 export const toursApi = {
   getAll: (params) => {
-    const query = new URLSearchParams(params).toString();
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (Array.isArray(value)) value.forEach((item) => query.append(key, item));
+      else if (value !== undefined && value !== null && value !== '') query.set(key, value);
+    });
     return apiRequest(`/tours${query ? `?${query}` : ''}`);
   },
   getById: (id) => apiRequest(`/tours/${id}`),
+};
+
+export const blogApi = {
+  getAll: () => apiRequest('/blog'),
+  getById: (id) => apiRequest(`/blog/${id}`),
 };
 
 export const bookingsApi = {
@@ -130,6 +216,11 @@ export const uploadApi = {
 
 export const adminApi = {
   getStats: () => apiRequest('/admin/stats'),
+  getOwnerApplications: () => apiRequest('/admin/owner-applications'),
+  updateOwnerApplicationStatus: (id, status, rejectionReason) => apiRequest(`/admin/owner-applications/${id}/status`, {
+    method: 'PATCH',
+    body: { status, rejectionReason },
+  }),
   // Bookings
   getAllBookings: () => apiRequest('/admin/bookings'),
   updateBookingStatus: (id, status) => apiRequest(`/admin/bookings/${id}/status`, {
@@ -150,11 +241,19 @@ export const adminApi = {
   createTour: (data) => apiRequest('/admin/tours', { method: 'POST', body: data }),
   updateTour: (id, data) => apiRequest(`/admin/tours/${id}`, { method: 'PATCH', body: data }),
   deleteTour: (id) => apiRequest(`/admin/tours/${id}`, { method: 'DELETE' }),
+  updateTourApproval: (id, status, note) => apiRequest(`/admin/tours/${id}/approval`, {
+    method: 'PATCH',
+    body: { status, note },
+  }),
   // Hotels/Homestays CRUD
   getAllHotels: () => apiRequest('/admin/hotels'),
   createHotel: (data) => apiRequest('/admin/hotels', { method: 'POST', body: data }),
   updateHotel: (id, data) => apiRequest(`/admin/hotels/${id}`, { method: 'PATCH', body: data }),
   deleteHotel: (id) => apiRequest(`/admin/hotels/${id}`, { method: 'DELETE' }),
+  updateHotelApproval: (id, status, note) => apiRequest(`/admin/hotels/${id}/approval`, {
+    method: 'PATCH',
+    body: { status, note },
+  }),
 };
 
 export const chatApi = {

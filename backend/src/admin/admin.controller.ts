@@ -27,6 +27,21 @@ export class AdminController {
     return this.adminService.updateBookingStatus(req.user.id, id, body.status);
   }
 
+  // --- Owner Applications ---
+  @Get('owner-applications')
+  getOwnerApplications(@Request() req) {
+    return this.adminService.getOwnerApplications(req.user.id);
+  }
+
+  @Patch('owner-applications/:id/status')
+  updateOwnerApplicationStatus(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { status: string; rejectionReason?: string },
+  ) {
+    return this.adminService.updateOwnerApplicationStatus(req.user.id, id, body.status, body.rejectionReason);
+  }
+
   // --- Users ---
   @Get('users')
   getAllUsers(@Request() req) {
@@ -74,6 +89,15 @@ export class AdminController {
     return this.adminService.updateTour(req.user.id, id, body);
   }
 
+  @Patch('tours/:id/approval')
+  updateTourApproval(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { status: string; note?: string },
+  ) {
+    return this.adminService.updateTourApproval(req.user.id, id, body.status, body.note);
+  }
+
   @Delete('tours/:id')
   deleteTour(@Request() req, @Param('id') id: string) {
     return this.adminService.deleteTour(req.user.id, id);
@@ -93,6 +117,15 @@ export class AdminController {
   @Patch('hotels/:id')
   updateHotel(@Request() req, @Param('id') id: string, @Body() body: any) {
     return this.adminService.updateHotel(req.user.id, id, body);
+  }
+
+  @Patch('hotels/:id/approval')
+  updateHotelApproval(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { status: string; note?: string },
+  ) {
+    return this.adminService.updateHotelApproval(req.user.id, id, body.status, body.note);
   }
 
   @Delete('hotels/:id')
