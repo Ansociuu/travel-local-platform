@@ -88,16 +88,58 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const payload = { ...message, sender };
 
-      // Emit to all participants in the conversation
-      const conv = await this.chatService.getMessages(data.conversationId, userId, 0, 0);
-      // Instead, get conversation to find participants
+      // Channel 1: Conversation room (users who have this chat open)
       this.server.to(`conv:${data.conversationId}`).emit('newMessage', payload);
 
-      // Also emit conversationUpdated for sidebar refresh
+      // Channel 2 & 3: Emit to each participant's personal room AND direct socket ID
+      this.chatService.getConversationParticipants(data.conversationId).then((participantIds) => {
+        participantIds.forEach((uid) => {
+          // Channel 2: Personal room (always joined on connect)
+          this.server.to(`user:${uid}`).emit('newMessage', payload);
+
+          // Channel 3: Direct socket ID (most reliable fallback)
+          const socketId = this.onlineUsers.get(uid);
+          if (socketId) {
+            this.server.to(socketId).emit('newMessage', payload);
+          }
+
+          console.log(`[Gateway] newMessage -> uid=${uid}, room=user:${uid}, socketId=${this.onlineUsers.get(uid) || 'offline'}`);
+        });
+      }).catch((err) => console.error('[Gateway] getParticipants error:', err));
+
+      // Sidebar update for all users
       this.server.emit('conversationUpdated', {
         conversationId: data.conversationId,
         lastMessage: data.content,
         lastAt: message.createdAt,
+      });
+
+      // Async translation — does NOT block the message being sent
+      this.chatService.translateMessageAsync(message.id).then((updatedMessage) => {
+        if (updatedMessage) {
+          console.log(`[Gateway] Emitting messageUpdated for ${message.id}`);
+          const updatedPayload = {
+            ...updatedMessage,
+            sender,
+            // Ensure translatedContent is a plain object for socket serialization
+            translatedContent: updatedMessage.translatedContent
+              ? JSON.parse(JSON.stringify(updatedMessage.translatedContent))
+              : null,
+          };
+          // Emit to the conversation room (both participants if both have chat open)
+          this.server.to(`conv:${data.conversationId}`).emit('messageUpdated', updatedPayload);
+          // Also emit to each participant's personal room as fallback
+          const participants = updatedMessage.conversationId
+            ? this.chatService.getConversationParticipants(updatedMessage.conversationId)
+            : Promise.resolve([]);
+          participants.then((ids) => {
+            ids.forEach((uid) => {
+              this.server.to(`user:${uid}`).emit('messageUpdated', updatedPayload);
+            });
+          }).catch(() => {});
+        }
+      }).catch((err) => {
+        console.error('[Gateway] translateMessageAsync failed:', err?.message);
       });
 
       return { success: true, message };

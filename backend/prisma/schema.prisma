@@ -63,6 +63,7 @@ model User {
   role          Role      @default(USER)
   emailVerified DateTime?
   isVerified    Boolean   @default(false)
+  preferredLanguage String @default("en")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -428,6 +429,8 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
   content        String       @db.Text
+  originalLanguage String?
+  translatedContent Json?
   read           Boolean      @default(false)
   createdAt      DateTime     @default(now())
 

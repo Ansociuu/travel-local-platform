@@ -63,20 +63,20 @@ export class UsersService {
   async findOne(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, avatar: true, role: true, createdAt: true },
+      select: { id: true, name: true, avatar: true, role: true, createdAt: true, preferredLanguage: true },
     });
   }
 
   async update(id: string, updateData: any) {
     const payload: any = {};
-    ['name', 'phone', 'avatar'].forEach((field) => {
+    ['name', 'phone', 'avatar', 'preferredLanguage'].forEach((field) => {
       if (updateData[field] !== undefined) payload[field] = updateData[field];
     });
 
     return this.prisma.user.update({
       where: { id },
       data: payload,
-      select: { id: true, email: true, name: true, phone: true, avatar: true, role: true, isVerified: true },
+      select: { id: true, email: true, name: true, phone: true, avatar: true, role: true, isVerified: true, preferredLanguage: true },
     });
   }
 

@@ -4,6 +4,7 @@ import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { TranslationService } from './translation.service';
 
 @Module({
   imports: [
@@ -14,6 +15,6 @@ import { PrismaModule } from '../prisma/prisma.module';
     }),
   ],
   controllers: [ChatController],
-  providers: [ChatGateway, ChatService],
+  providers: [ChatGateway, ChatService, TranslationService],
 })
 export class ChatModule {}

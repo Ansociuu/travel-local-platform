@@ -4,8 +4,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Send, Search, ArrowLeft, MessageCircle } from "lucide-react";
 import s from "./chat.module.css";
-import { chatApi } from "@/lib/api";
+import { authApi, chatApi } from "@/lib/api";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+import { Globe } from "lucide-react";
 
 const fmtTime = (d) => {
   if (!d) return "";
@@ -30,6 +31,41 @@ const getDateLabel = (d) => {
   return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
+const LANG_NAMES = { "en": "English", "vi": "Tiếng Việt", "ja": "Japanese", "ko": "Korean", "zh": "Chinese", "fr": "French", "es": "Spanish" };
+
+function MessageBubble({ msg, isMe, autoTranslate, userLang }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const hasTranslation = msg.translatedContent && msg.translatedContent[userLang];
+  const isDiffLang = msg.originalLanguage && msg.originalLanguage !== userLang;
+  
+  const displayContent = (autoTranslate && isDiffLang && hasTranslation && !showOriginal) 
+    ? msg.translatedContent[userLang] 
+    : msg.content;
+
+  const langName = LANG_NAMES[msg.originalLanguage] || msg.originalLanguage;
+
+  return (
+    <div>
+      <div className={isMe ? s.msgRowMe : s.msgRowOther}>
+        <div className={isMe ? s.msgBubbleMe : s.msgBubbleOther}>
+          <div>{displayContent}</div>
+          {(autoTranslate && isDiffLang && hasTranslation) && (
+            <div className={s.translateMeta}>
+              <span className={s.translatedFrom}>Translated from {langName}</span>
+              <button className={s.seeOriginalBtn} onClick={() => setShowOriginal(!showOriginal)}>
+                {showOriginal ? "[Hide original]" : "[See original]"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className={isMe ? s.msgTimeMe : s.msgTimeOther}>
+        {fmtMsgTime(msg.createdAt)}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatPage() {
   return (
     <Suspense fallback={<div className={s.chatLayout}></div>}>
@@ -52,18 +88,39 @@ function ChatPageContent() {
   const [typing, setTyping] = useState(null);
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [messagesError, setMessagesError] = useState("");
+  const [userLang, setUserLang] = useState("vi");
+  const [autoTranslate, setAutoTranslate] = useState(true);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
   const appliedQueryConversationId = useRef("");
+  const activeConvRef = useRef(null); // Always up-to-date, avoids stale closure in socket handlers
   const queryConversationId = searchParams?.get("conversationId") || "";
   const activeConversationId = activeConv?.id || "";
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    activeConvRef.current = activeConv;
+  }, [activeConv]);
 
   // Auth check
   useEffect(() => {
     const u = localStorage.getItem("user");
     if (!u) { router.push("/login"); return; }
-    setUser(JSON.parse(u));
+    const parsedUser = JSON.parse(u);
+    setUser(parsedUser);
+    setUserLang(parsedUser.preferredLanguage || "vi");
   }, [router]);
+
+  const handleLangChange = async (e) => {
+    const lang = e.target.value;
+    setUserLang(lang);
+    if (user) {
+      const updated = { ...user, preferredLanguage: lang };
+      setUser(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+      authApi.updateMe({ preferredLanguage: lang }).catch(console.error);
+    }
+  };
 
   // Connect socket
   useEffect(() => {
@@ -71,9 +128,31 @@ function ChatPageContent() {
     const sock = connectSocket();
     if (!sock) return;
 
+    // Re-join active conversation room on reconnect
+    sock.on("connect", () => {
+      const conv = activeConvRef.current;
+      if (conv) {
+        sock.emit("joinConversation", { conversationId: conv.id });
+      }
+    });
+
+    sock.onAny((eventName, ...args) => {
+      console.log(`[Socket.io] Received event: ${eventName}`, args);
+    });
+
     sock.on("newMessage", (msg) => {
+      console.log("[newMessage] received:", msg.id, "convId:", msg.conversationId, "activeConv:", activeConvRef.current?.id);
       setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
+        if (prev.some((m) => m.id === msg.id)) {
+          console.log("[newMessage] DEDUPED:", msg.id);
+          return prev;
+        }
+
+        // Only update messages list if it belongs to the active conversation
+        if (activeConvRef.current && msg.conversationId !== activeConvRef.current.id) {
+          console.log("[newMessage] FILTERED - wrong conv:", msg.conversationId, "vs active:", activeConvRef.current.id);
+          return prev;
+        }
 
         // Find if there's an optimistic message from me with same content
         const optIdx = prev.findIndex(m => 
@@ -83,11 +162,13 @@ function ChatPageContent() {
         );
 
         if (optIdx !== -1) {
+          console.log("[newMessage] replaced optimistic:", msg.id);
           const updated = [...prev];
           updated[optIdx] = msg;
           return updated;
         }
 
+        console.log("[newMessage] ADDED to state:", msg.id);
         return [...prev, msg];
       });
       // Update conversation list
@@ -113,6 +194,12 @@ function ChatPageContent() {
             : c
         ).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
       );
+    });
+
+    sock.on("messageUpdated", (updatedMsg) => {
+      // Only update if this message belongs to the active conversation
+      if (activeConvRef.current && updatedMsg.conversationId !== activeConvRef.current.id) return;
+      setMessages((prev) => prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m)));
     });
 
     sock.on("userTyping", (data) => {
@@ -361,19 +448,38 @@ function ChatPageContent() {
       {activeConv ? (
         <div className={s.chatArea}>
           <div className={s.chatHeader}>
-            <button className={s.mobileBackBtn} onClick={() => setMobileShowChat(false)}>
-              <ArrowLeft size={16} /> Quay lại
-            </button>
-            <img className={s.chatHeaderAvatar} src={otherUser?.avatar || `https://ui-avatars.com/api/?name=${otherUser?.name || "U"}&background=0d9488&color=fff`} alt="" />
-            <div>
-              <p className={s.chatHeaderName}>{otherUser?.name || "Người dùng"}</p>
-              <p className={s.chatHeaderStatus}>
-                {typing?.conversationId === activeConv.id ? (
-                  <em>Đang nhập...</em>
-                ) : (
-                  <><span className={s.onlineDot} /> Trực tuyến</>
-                )}
-              </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <button className={s.mobileBackBtn} onClick={() => setMobileShowChat(false)}>
+                <ArrowLeft size={16} /> Quay lại
+              </button>
+              <img className={s.chatHeaderAvatar} src={otherUser?.avatar || `https://ui-avatars.com/api/?name=${otherUser?.name || "U"}&background=0d9488&color=fff`} alt="" />
+              <div>
+                <p className={s.chatHeaderName}>{otherUser?.name || "Người dùng"}</p>
+                <p className={s.chatHeaderStatus}>
+                  {typing?.conversationId === activeConv.id ? (
+                    <em>Đang nhập...</em>
+                  ) : (
+                    <><span className={s.onlineDot} /> Trực tuyến</>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className={s.translateControls}>
+              <Globe size={16} />
+              <select value={userLang} onChange={handleLangChange} className={s.langSelect}>
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+                <option value="ja">Japanese</option>
+                <option value="ko">Korean</option>
+                <option value="zh">Chinese</option>
+                <option value="fr">French</option>
+                <option value="es">Spanish</option>
+              </select>
+              <label className={s.autoTranslateToggle}>
+                <input type="checkbox" checked={autoTranslate} onChange={(e) => setAutoTranslate(e.target.checked)} />
+                Auto-translate
+              </label>
             </div>
           </div>
 
@@ -390,16 +496,13 @@ function ChatPageContent() {
               const msg = item.data;
               const isMe = msg.senderId === user.id;
               return (
-                <div key={msg.id}>
-                  <div className={isMe ? s.msgRowMe : s.msgRowOther}>
-                    <div className={isMe ? s.msgBubbleMe : s.msgBubbleOther}>
-                      {msg.content}
-                    </div>
-                  </div>
-                  <div className={isMe ? s.msgTimeMe : s.msgTimeOther}>
-                    {fmtMsgTime(msg.createdAt)}
-                  </div>
-                </div>
+                <MessageBubble 
+                  key={msg.id} 
+                  msg={msg} 
+                  isMe={isMe} 
+                  autoTranslate={autoTranslate} 
+                  userLang={userLang} 
+                />
               );
             })}
             <div ref={messagesEndRef} />

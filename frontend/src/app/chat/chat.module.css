@@ -485,6 +485,73 @@
   white-space: nowrap;
 }
 
+/* Translate feature */
+.translateControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  color: #64748b;
+}
+
+.langSelect {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+}
+
+.autoTranslateToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.translateMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 11px;
+}
+
+.msgBubbleMe .translateMeta {
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+.translatedFrom {
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.seeOriginalBtn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.9;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.seeOriginalBtn:hover {
+  opacity: 1;
+}
+
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
   .sidebar {

@@ -5,7 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 let socket = null;
 
 export function connectSocket() {
-  if (socket?.connected) return socket;
+  if (socket) return socket;
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   if (!token) return null;

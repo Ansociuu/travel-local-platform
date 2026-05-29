@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TranslationService } from './translation.service';
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private translationService: TranslationService,
+  ) {}
 
   async getOrCreateConversation(userId1: string, userId2: string) {
     // Find existing conversation between these two users
@@ -89,8 +93,17 @@ export class ChatService {
     const participants = conv.participants as string[];
     if (!participants.includes(senderId)) throw new Error('Not a participant');
 
+    // Get sender language
+    const sender = await this.prisma.user.findUnique({ where: { id: senderId }, select: { preferredLanguage: true } });
+    const senderLang = sender?.preferredLanguage || 'en';
+
     const message = await this.prisma.message.create({
-      data: { conversationId, senderId, content },
+      data: { 
+        conversationId, 
+        senderId, 
+        content,
+        originalLanguage: senderLang,
+      },
     });
 
     // Update conversation lastMessage
@@ -100,6 +113,81 @@ export class ChatService {
     });
 
     return message;
+  }
+
+  async translateMessageAsync(messageId: string) {
+    try {
+      const message = await this.prisma.message.findUnique({
+        where: { id: messageId },
+      });
+      if (!message) return null;
+
+      // Fetch conversation separately (avoid include issues)
+      const conversation = await this.prisma.conversation.findUnique({
+        where: { id: message.conversationId },
+      });
+      if (!conversation) return null;
+
+      const participants = conversation.participants as string[];
+      const senderLang = message.originalLanguage || 'en';
+
+      const otherUsers = await this.prisma.user.findMany({
+        where: { id: { in: participants.filter((id) => id !== message.senderId) } },
+        select: { preferredLanguage: true },
+      });
+
+      const targetLangs = [
+        ...new Set(otherUsers.map((u) => u.preferredLanguage || 'en')),
+      ].filter((lang) => lang !== senderLang);
+
+      console.log(`[Translation] messageId=${messageId} senderLang=${senderLang} targetLangs=${targetLangs}`);
+
+      if (targetLangs.length === 0) {
+        console.log(`[Translation] No translation needed (same language)`);
+        return null;
+      }
+
+      const existingTranslations: Record<string, string> =
+        message.translatedContent ? (message.translatedContent as Record<string, string>) : {};
+
+      let detectedSourceLanguage = senderLang;
+      let hasNewTranslation = false;
+
+      for (const targetLang of targetLangs) {
+        if (existingTranslations[targetLang]) continue;
+
+        const { translatedText, detectedSourceLanguage: detected } =
+          await this.translationService.translateText(message.content, targetLang);
+
+        // Skip if translation is identical to original (means same language was detected)
+        if (translatedText === message.content) {
+          console.log(`[Translation] Skipped [${targetLang}]: same as original (likely same language)`);
+          continue;
+        }
+
+        existingTranslations[targetLang] = translatedText;
+        hasNewTranslation = true;
+        if (detected !== 'unknown') detectedSourceLanguage = detected;
+
+        console.log(`[Translation] "${message.content}" -> [${targetLang}]: "${translatedText}"`);
+      }
+
+      if (!hasNewTranslation) return null;
+
+      const updated = await this.prisma.message.update({
+        where: { id: messageId },
+        data: {
+          originalLanguage: detectedSourceLanguage,
+          translatedContent: existingTranslations,
+        },
+      });
+
+      console.log(`[Translation] DB updated successfully for messageId=${messageId}`);
+      return updated;
+    } catch (err) {
+      console.error('[Translation] translateMessageAsync error:', err.message);
+      return null;
+    }
   }
 
   async markAsRead(conversationId: string, userId: string) {
@@ -129,6 +217,13 @@ export class ChatService {
         read: false,
       },
     });
+  }
+
+  async getConversationParticipants(conversationId: string): Promise<string[]> {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+    return conv ? (conv.participants as string[]) : [];
   }
 
   async getUserInfo(userId: string) {
