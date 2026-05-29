@@ -19,6 +19,7 @@ export default function TourDetailPage() {
 
   // Booking states
   const [selectedAvailId, setSelectedAvailId] = useState("");
+  const [selectedDailyDate, setSelectedDailyDate] = useState("");
   const [bookingGuests, setBookingGuests] = useState(1);
 
   useEffect(() => {
@@ -28,6 +29,11 @@ export default function TourDetailPage() {
         setTour(data);
         if (data.availability && data.availability.length > 0) {
           setSelectedAvailId(data.availability[0].id);
+        } else {
+          setSelectedAvailId("daily");
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          setSelectedDailyDate(tomorrow.toISOString().split('T')[0]);
         }
       } catch (error) {
         console.error("Failed to fetch tour details:", error);
@@ -51,11 +57,16 @@ export default function TourDetailPage() {
       return;
     }
 
+    if (selectedAvailId === "daily" && !selectedDailyDate) {
+      alert("Vui lòng chọn Ngày khởi hành!");
+      return;
+    }
+
     const bookingData = {
       type: 'tour',
       tourId: tour.id,
       tourName: tour.name,
-      checkIn: selectedAvail.startDate,
+      checkIn: selectedAvailId === "daily" ? selectedDailyDate : selectedAvail?.startDate,
       quantity: bookingGuests,
       priceAtBooking: Number(displayPrice),
       totalAmount: Number(displayPrice) * bookingGuests,
@@ -329,7 +340,27 @@ export default function TourDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <div style={{ fontSize: "14px", color: "#64748b", fontStyle: "italic" }}>Đang cập nhật lịch</div>
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 700, marginBottom: "8px" }}>📅 Khởi hành hàng ngày. Chọn ngày đi:</div>
+                      <input 
+                        type="date" 
+                        value={selectedDailyDate} 
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setSelectedDailyDate(e.target.value)} 
+                        style={{ 
+                          width: "100%", 
+                          padding: "10px 12px", 
+                          borderRadius: "12px", 
+                          border: "1px solid #cbd5e1", 
+                          fontSize: "14px", 
+                          fontWeight: 700, 
+                          color: "#0f172a",
+                          outline: "none",
+                          background: "#fff",
+                          fontFamily: "inherit"
+                        }} 
+                      />
+                    </div>
                   )}
                 </div>
                 

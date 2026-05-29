@@ -335,7 +335,7 @@ export class AdminService {
 
   async createTour(userId: string, data: any) {
     const admin = await this.assertAdmin(userId);
-    return this.prisma.tour.create({
+    const tour = await this.prisma.tour.create({
       data: {
         name: data.name,
         description: data.description || '',
@@ -353,6 +353,21 @@ export class AdminService {
         reviewedAt: new Date(),
       },
     });
+
+    if (data.startDate) {
+      await this.prisma.tourAvailability.create({
+        data: {
+          tourId: tour.id,
+          startDate: new Date(data.startDate),
+          price: tour.basePrice,
+          capacity: 10,
+          booked: 0,
+          available: 10,
+        }
+      });
+    }
+
+    return tour;
   }
 
   async updateTour(userId: string, tourId: string, data: any) {
@@ -373,7 +388,30 @@ export class AdminService {
     if (data.includes !== undefined) updateData.includes = data.includes;
     if (data.excludes !== undefined) updateData.excludes = data.excludes;
 
-    return this.prisma.tour.update({ where: { id: tourId }, data: updateData });
+    const updated = await this.prisma.tour.update({ where: { id: tourId }, data: updateData });
+
+    if (data.startDate) {
+      const startD = new Date(data.startDate);
+      const existing = await this.prisma.tourAvailability.findFirst({
+        where: { tourId, startDate: startD }
+      });
+      if (!existing) {
+        // Clear old ones and write the new active start date
+        await this.prisma.tourAvailability.deleteMany({ where: { tourId } });
+        await this.prisma.tourAvailability.create({
+          data: {
+            tourId,
+            startDate: startD,
+            price: updated.basePrice,
+            capacity: 10,
+            booked: 0,
+            available: 10,
+          }
+        });
+      }
+    }
+
+    return updated;
   }
 
   async updateTourApproval(userId: string, tourId: string, status: string, note?: string) {
@@ -430,7 +468,7 @@ export class AdminService {
 
   async createHotel(userId: string, data: any) {
     await this.assertAdmin(userId);
-    return this.prisma.hotel.create({
+    const hotel = await this.prisma.hotel.create({
       data: {
         name: data.name,
         description: data.description || '',
@@ -444,11 +482,27 @@ export class AdminService {
         reviewedAt: new Date(),
       },
     });
+
+    const price = parseFloat(data.basePrice) || 0;
+    await this.prisma.room.create({
+      data: {
+        hotelId: hotel.id,
+        name: 'Standard Room',
+        basePrice: price,
+        capacity: 2,
+        totalRooms: 1,
+      }
+    });
+
+    return hotel;
   }
 
   async updateHotel(userId: string, hotelId: string, data: any) {
     await this.assertAdmin(userId);
-    const hotel = await this.prisma.hotel.findUnique({ where: { id: hotelId } });
+    const hotel = await this.prisma.hotel.findUnique({
+      where: { id: hotelId },
+      include: { rooms: true }
+    });
     if (!hotel) throw new NotFoundException('Homestay không tồn tại');
 
     const updateData: any = {};
@@ -463,7 +517,29 @@ export class AdminService {
     if (data.lat !== undefined) updateData.lat = parseFloat(data.lat);
     if (data.lng !== undefined) updateData.lng = parseFloat(data.lng);
 
-    return this.prisma.hotel.update({ where: { id: hotelId }, data: updateData });
+    const updated = await this.prisma.hotel.update({ where: { id: hotelId }, data: updateData });
+
+    if (data.basePrice !== undefined) {
+      const price = parseFloat(data.basePrice) || 0;
+      if (hotel.rooms.length > 0) {
+        await this.prisma.room.update({
+          where: { id: hotel.rooms[0].id },
+          data: { basePrice: price }
+        });
+      } else {
+        await this.prisma.room.create({
+          data: {
+            hotelId: hotelId,
+            name: 'Standard Room',
+            basePrice: price,
+            capacity: 2,
+            totalRooms: 1,
+          }
+        });
+      }
+    }
+
+    return updated;
   }
 
   async updateHotelApproval(userId: string, hotelId: string, status: string, note?: string) {

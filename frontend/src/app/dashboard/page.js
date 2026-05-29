@@ -512,9 +512,17 @@ export default function DashboardPage() {
                         <div style={{ textAlign: "right" }}>
                           <div style={{ fontWeight: 800, color: "#0d9488", marginBottom: "4px" }}>₫{Number(b.totalAmount).toLocaleString()}</div>
                           <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 800, padding: "4px 8px", borderRadius: "6px", background: b.status === 'CONFIRMED' ? "#f0fdf4" : b.status === 'COMPLETED' ? "#f0f9ff" : "#fffbeb", color: b.status === 'CONFIRMED' ? "#10b981" : b.status === 'COMPLETED' ? "#0ea5e9" : "#f59e0b" }}>
-                              {b.status}
+                            <span style={{ fontSize: "11px", fontWeight: 800, padding: "4px 8px", borderRadius: "6px", background: b.status === 'CONFIRMED' ? "#f0fdf4" : b.status === 'COMPLETED' ? "#f0f9ff" : b.status === 'CANCELLED' ? "#fef2f2" : "#fffbeb", color: b.status === 'CONFIRMED' ? "#10b981" : b.status === 'COMPLETED' ? "#0ea5e9" : b.status === 'CANCELLED' ? "#ef4444" : "#f59e0b" }}>
+                              {b.status === 'PENDING' ? 'Chờ thanh toán' : b.status === 'CONFIRMED' ? 'Đã xác nhận' : b.status === 'COMPLETED' ? 'Hoàn thành' : b.status === 'CANCELLED' ? 'Đã huỷ' : b.status}
                             </span>
+                            {b.status === 'PENDING' && b.paymentStatus !== 'PAID' && (
+                              <Link
+                                href={`/checkout/pay?bookingId=${b.id}`}
+                                style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 14px", borderRadius: "8px", border: "none", background: "linear-gradient(135deg, #0d9488, #0ea5e9)", color: "#fff", fontSize: "12px", fontWeight: 700, textDecoration: "none", cursor: "pointer", boxShadow: "0 2px 8px rgba(13,148,136,0.3)" }}
+                              >
+                                <CreditCard size={14} /> Thanh toán
+                              </Link>
+                            )}
                             {b.status === 'COMPLETED' && !reviewedBookingIds.has(b.id) && (
                               <button 
                                 onClick={() => handleOpenReview(b)}

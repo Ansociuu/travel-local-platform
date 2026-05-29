@@ -201,6 +201,8 @@ export const paymentsApi = {
     body: { bookingId },
   }),
   verifyVNPayReturn: (queryString) => apiRequest(`/payments/vnpay/vnpay_return?${queryString}`),
+  getBookingStatus: (bookingId) => apiRequest(`/payments/status/${bookingId}`),
+  getSepayPaymentInfo: (bookingId) => apiRequest(`/payments/sepay/info/${bookingId}`),
 };
 
 export const uploadApi = {

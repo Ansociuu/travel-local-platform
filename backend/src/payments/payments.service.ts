@@ -123,4 +123,151 @@ export class PaymentsService {
     const pad = (n: number) => (n < 10 ? '0' + n : n);
     return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
   }
+
+  async getSepayPaymentInfo(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) throw new BadRequestException('Booking not found');
+
+    const bankBin = process.env.SEPAY_BANK_BIN || '970422';
+    const accountNumber = process.env.SEPAY_ACCOUNT_NUMBER || '038283xxxx';
+    const accountName = process.env.SEPAY_ACCOUNT_NAME || 'YOUR BANK ACCOUNT NAME';
+    const qrTemplate = process.env.SEPAY_QR_TEMPLATE || 'compact2';
+    const memo = booking.shortId;
+
+    const qrUrl = `https://img.vietqr.io/image/${bankBin}-${accountNumber}-${qrTemplate}.png?amount=${booking.totalAmount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(accountName)}`;
+
+    return {
+      bookingId: booking.id,
+      shortId: booking.shortId,
+      totalAmount: booking.totalAmount,
+      bankBin,
+      accountNumber,
+      accountName,
+      memo,
+      qrUrl
+    };
+  }
+
+  async getBookingStatus(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, shortId: true, status: true, paymentStatus: true }
+    });
+    if (!booking) throw new BadRequestException('Booking not found');
+    return booking;
+  }
+
+  async handleSepayWebhook(body: any) {
+    if (body.transferType !== 'in') {
+      return { success: true, message: 'Ignored outgoing transaction' };
+    }
+
+    const amount = Number(body.transferAmount);
+    const transactionContent = body.content || body.description || body.transactionContent || '';
+    const sepayTransactionId = String(body.id);
+
+    // 1. Sanitize transfer content: remove all non-alphanumeric chars
+    const cleanContent = transactionContent.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+    // 2. Fetch all pending/unpaid bookings
+    const pendingBookings = await this.prisma.booking.findMany({
+      where: {
+        status: 'PENDING',
+        paymentStatus: { in: ['UNPAID', 'PARTIAL'] }
+      }
+    });
+
+    // 3. Match booking by sanitized shortId
+    let booking: any = null;
+    for (const b of pendingBookings) {
+      const cleanShortId = b.shortId.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      if (cleanShortId && cleanContent.includes(cleanShortId)) {
+        booking = b;
+        break;
+      }
+    }
+
+    // 4. Fallback: If not found in pending, try matching by splitting words
+    if (!booking) {
+      const words = transactionContent.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').split(/\s+/);
+      for (const word of words) {
+        if (word.length >= 5 && word.length <= 10) {
+          // Search in all bookings
+          let found = await this.prisma.booking.findFirst({
+            where: {
+              OR: [
+                { shortId: word },
+                { shortId: `MT-${word}` },
+                { shortId: `BKN-${word}` },
+                { shortId: word.startsWith('MT') ? `MT-${word.substring(2)}` : word }
+              ]
+            }
+          });
+          if (found) {
+            booking = found;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!booking) {
+      return { success: false, message: `Booking not found for content: "${transactionContent}"` };
+    }
+
+    if (booking.paymentStatus === 'PAID') {
+      return { success: true, message: 'Booking already paid' };
+    }
+
+    const existingPayment = await this.prisma.payment.findUnique({
+      where: { transactionId: sepayTransactionId }
+    });
+
+    if (existingPayment) {
+      return { success: true, message: 'Transaction already processed' };
+    }
+
+    if (amount < Number(booking.totalAmount)) {
+      await this.prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: amount,
+          provider: 'SEPAY',
+          method: 'TRANSFER',
+          status: 'PARTIAL',
+          transactionId: sepayTransactionId,
+        }
+      });
+
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: { paymentStatus: 'PARTIAL' }
+      });
+
+      return { success: true, message: 'Underpaid. Marked as partial' };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: 'CONFIRMED',
+          paymentStatus: 'PAID'
+        }
+      });
+
+      await tx.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: amount,
+          provider: 'SEPAY',
+          method: 'TRANSFER',
+          status: 'SUCCESS',
+          transactionId: sepayTransactionId,
+        }
+      });
+    });
+
+    return { success: true, message: 'Payment confirmed successfully' };
+  }
 }

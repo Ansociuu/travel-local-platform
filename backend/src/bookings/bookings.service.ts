@@ -1,11 +1,38 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { HotelApprovalStatus, TourApprovalStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
 @Injectable()
-export class BookingsService {
+export class BookingsService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
+
+  onModuleInit() {
+    this.cleanupStaleBookings().catch(err => console.error('[Booking Cleanup Init Error]:', err));
+    setInterval(() => {
+      this.cleanupStaleBookings().catch(err => console.error('[Booking Cleanup Interval Error]:', err));
+    }, 5 * 60 * 1000);
+  }
+
+  async cleanupStaleBookings() {
+    try {
+      const expirationTime = new Date(Date.now() - 30 * 60 * 1000); // 30 mins
+      const staleBookings = await this.prisma.booking.findMany({
+        where: {
+          status: 'PENDING',
+          createdAt: { lt: expirationTime }
+        }
+      });
+      if (staleBookings.length > 0) {
+        await this.prisma.booking.updateMany({
+          where: { id: { in: staleBookings.map(b => b.id) } },
+          data: { status: 'CANCELLED' }
+        });
+      }
+    } catch (err) {
+      console.error('[Booking Cleanup Error]:', err);
+    }
+  }
 
   async create(userId: string, createBookingDto: CreateBookingDto) {
     const { 
@@ -79,6 +106,7 @@ export class BookingsService {
   }
 
   async findMyBookings(userId: string) {
+    await this.cleanupStaleBookings();
     return this.prisma.booking.findMany({
       where: { userId },
       include: {
@@ -90,6 +118,7 @@ export class BookingsService {
   }
 
   async findOne(id: string) {
+    await this.cleanupStaleBookings();
     const booking = await this.prisma.booking.findUnique({
       where: { id },
       include: {

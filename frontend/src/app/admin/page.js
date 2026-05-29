@@ -105,7 +105,18 @@ export default function AdminPage() {
 
   // CRUD handlers
   const openCreate = (type) => { setForm({}); setModal({ type, mode: "create" }); };
-  const openEdit = (type, item) => { setForm({ ...item, basePrice: item.basePrice?.toString() }); setModal({ type, mode: "edit" }); };
+  const openEdit = (type, item) => {
+    if (type === "tour") {
+      const startD = item.availability?.[0] ? new Date(item.availability[0].startDate).toISOString().split("T")[0] : "";
+      setForm({ ...item, basePrice: item.basePrice?.toString(), startDate: startD });
+    } else if (type === "hotel") {
+      const price = item.rooms?.[0] ? item.rooms[0].basePrice?.toString() : "";
+      setForm({ ...item, basePrice: price });
+    } else {
+      setForm({ ...item });
+    }
+    setModal({ type, mode: "edit" });
+  };
 
   const handleSave = async () => {
     if (modal.type === "user") {
@@ -270,16 +281,16 @@ export default function AdminPage() {
             </div>
 
             {/* Quick Actions */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px", marginBottom: "28px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "14px", marginBottom: "28px" }}>
               {[
-                { label: "Thêm Tour", icon: "🗺️", action: () => { setTab("tours"); setTimeout(() => openCreate("tour"), 100); } },
-                { label: "Thêm Homestay", icon: "🏡", action: () => { setTab("hotels"); setTimeout(() => openCreate("hotel"), 100); } },
-                { label: "Duyệt Owner", icon: "✅", action: () => setTab("owner-applications") },
-                { label: "Xem Đặt chỗ", icon: "📋", action: () => setTab("bookings") },
-                { label: "Quản lý Users", icon: "👥", action: () => setTab("users") },
+                { label: "Thêm Tour", icon: Map, action: () => { setTab("tours"); setTimeout(() => openCreate("tour"), 100); } },
+                { label: "Thêm Homestay", icon: Home, action: () => { setTab("hotels"); setTimeout(() => openCreate("hotel"), 100); } },
+                { label: "Duyệt Owner", icon: ClipboardCheck, action: () => setTab("owner-applications") },
+                { label: "Xem Đặt chỗ", icon: ShoppingCart, action: () => setTab("bookings") },
+                { label: "Quản lý Users", icon: Users, action: () => setTab("users") },
               ].map((a, i) => (
                 <button key={i} onClick={a.action} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "16px 18px", borderRadius: "14px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: "14px", fontWeight: 700, color: "#334155", transition: "all 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                  <span style={{ fontSize: "22px" }}>{a.icon}</span>{a.label}
+                  <a.icon size={18} color="#6366f1" />{a.label}
                 </button>
               ))}
             </div>
@@ -402,14 +413,15 @@ export default function AdminPage() {
               </div>
               <div className={s.tableWrap}>
                 <table className={s.table}>
-                  <thead><tr><th>Tên</th><th>Địa điểm</th><th>Thời gian</th><th>Giá</th><th>Duyệt</th><th>Bookings</th><th>Hành động</th></tr></thead>
+                  <thead><tr><th>Tên</th><th>Địa điểm</th><th>Thời gian</th><th>Ngày khởi hành</th><th>Giá</th><th>Duyệt</th><th>Bookings</th><th>Hành động</th></tr></thead>
                   <tbody>
-                    {tours.length === 0 && <tr><td colSpan={7} className={s.emptyState}>Chưa có tour</td></tr>}
+                    {tours.length === 0 && <tr><td colSpan={8} className={s.emptyState}>Chưa có tour</td></tr>}
                     {tours.map(t => (
                       <tr key={t.id}>
                         <td className={s.userName}>{t.name}</td>
                         <td>{t.location}</td>
                         <td>{t.durationDays}N{t.durationNights}Đ</td>
+                        <td>{t.availability?.[0] ? fmtD(t.availability[0].startDate) : "Hàng ngày"}</td>
                         <td style={{ fontWeight: 700, color: "#0d9488" }}>{fmt(t.basePrice)}₫</td>
                         <td><span className={APPROVAL_MAP[t.approvalStatus]?.[1]}>{APPROVAL_MAP[t.approvalStatus]?.[0] || t.approvalStatus}</span></td>
                         <td>{t._count?.bookings ?? 0}</td>
@@ -438,7 +450,7 @@ export default function AdminPage() {
               </div>
               <div className={s.tableWrap}>
                 <table className={s.table}>
-                  <thead><tr><th>Tên</th><th>Thành phố</th><th>Loại</th><th>Duyệt</th><th>Phòng</th><th>Bookings</th><th>Hành động</th></tr></thead>
+                  <thead><tr><th>Tên</th><th>Thành phố</th><th>Loại</th><th>Giá/đêm</th><th>Duyệt</th><th>Bookings</th><th>Hành động</th></tr></thead>
                   <tbody>
                     {hotels.length === 0 && <tr><td colSpan={7} className={s.emptyState}>Chưa có homestay</td></tr>}
                     {hotels.map(h => (
@@ -446,8 +458,8 @@ export default function AdminPage() {
                         <td className={s.userName}>{h.name}</td>
                         <td>{h.city}</td>
                         <td><span className={s.badge} style={{ background: "#ede9fe", color: "#6d28d9" }}>{h.type}</span></td>
+                        <td style={{ fontWeight: 700, color: "#0d9488" }}>{h.rooms?.[0] ? fmt(h.rooms[0].basePrice) + "₫" : "—"}</td>
                         <td><span className={APPROVAL_MAP[h.approvalStatus]?.[1]}>{APPROVAL_MAP[h.approvalStatus]?.[0] || h.approvalStatus}</span></td>
-                        <td>{h.rooms?.length || 0}</td>
                         <td>{h._count?.bookings ?? 0}</td>
                         <td>
                           <button className={s.editBtn} onClick={() => setPreview({ type: "hotel", data: h })}>Xem</button>
@@ -473,7 +485,7 @@ export default function AdminPage() {
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
               <h2 className={s.modalTitle} style={{ margin: 0 }}>
-                {modal.mode === "create" ? "✨ Thêm" : "✏️ Chỉnh sửa"} {modal.type === "tour" ? "Tour" : modal.type === "hotel" ? "Homestay" : "Người dùng"}
+                {modal.mode === "create" ? "Thêm" : "Chỉnh sửa"} {modal.type === "tour" ? "Tour" : modal.type === "hotel" ? "Homestay" : "Người dùng"}
               </h2>
               <button onClick={() => setModal(null)} style={{ background: "none", border: "none", fontSize: 20, color: "#94a3b8", cursor: "pointer", padding: 4 }}>✕</button>
             </div>
@@ -481,7 +493,7 @@ export default function AdminPage() {
             {modal.type === "user" ? (<>
               {/* ===== USER FORM ===== */}
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>👤 Thông tin cá nhân</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>Thông tin cá nhân</div>
                 <div className={s.formGroup}><label className={s.formLabel}>Họ và tên</label><input className={s.formInput} value={form.name || ""} onChange={F("name")} placeholder="VD: Nguyễn Văn A" /></div>
                 <div className={s.formRow}>
                   <div className={s.formGroup}><label className={s.formLabel}>Email <span style={{ color: "#dc2626" }}>*</span></label><input className={s.formInput} value={form.email || ""} onChange={F("email")} placeholder="example@gmail.com" type="email" /></div>
@@ -489,14 +501,14 @@ export default function AdminPage() {
                 </div>
               </div>
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#6366f1", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>🔒 Quyền & Bảo mật</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#6366f1", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>Quyền & Bảo mật</div>
                 <div className={s.formRow}>
                   <div className={s.formGroup}>
                     <label className={s.formLabel}>Vai trò</label>
                     <select className={s.formInput} value={form.role || "USER"} onChange={F("role")} style={{ cursor: "pointer" }}>
-                      <option value="USER">👤 USER — Người dùng thường</option>
-                      <option value="OWNER">🏠 OWNER — Chủ dịch vụ</option>
-                      <option value="ADMIN">⚡ ADMIN — Quản trị viên</option>
+                      <option value="USER">USER — Người dùng thường</option>
+                      <option value="OWNER">OWNER — Chủ dịch vụ</option>
+                      <option value="ADMIN">ADMIN — Quản trị viên</option>
                     </select>
                   </div>
                   <div className={s.formGroup}>
@@ -511,7 +523,7 @@ export default function AdminPage() {
               {/* Section 1: Thông tin cơ bản */}
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {modal.type === "tour" ? "🗺️ Thông tin tour" : "🏡 Thông tin lưu trú"}
+                  {modal.type === "tour" ? "Thông tin tour" : "Thông tin lưu trú"}
                 </div>
                 <div className={s.formGroup}>
                   <label className={s.formLabel}>Tên {modal.type === "tour" ? "tour" : "homestay"} <span style={{ color: "#dc2626" }}>*</span></label>
@@ -529,7 +541,7 @@ export default function AdminPage() {
               {/* Section 2: Chi tiết */}
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#6366f1", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>
-                  {modal.type === "tour" ? "📍 Lịch trình & Giá" : "📍 Vị trí & Phân loại"}
+                  {modal.type === "tour" ? "Lịch trình & Giá" : "Vị trí & Phân loại"}
                 </div>
                 {modal.type === "tour" ? (<>
                   <div className={s.formRow}>
@@ -552,6 +564,11 @@ export default function AdminPage() {
                       <label className={s.formLabel}>Số đêm</label>
                       <input className={s.formInput} type="number" min="0" value={form.durationNights || ""} onChange={F("durationNights")} placeholder="VD: 2" />
                     </div>
+                  </div>
+                  <div className={s.formGroup} style={{ marginTop: 8 }}>
+                    <label className={s.formLabel}>Ngày khởi hành</label>
+                    <input className={s.formInput} type="date" value={form.startDate || ""} onChange={F("startDate")} />
+                    <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Để trống nếu tour khởi hành hàng ngày</div>
                   </div>
                   {/* Includes / Excludes */}
                   <div className={s.formRow} style={{ marginTop: 8 }}>
@@ -579,11 +596,22 @@ export default function AdminPage() {
                     <div className={s.formGroup}>
                       <label className={s.formLabel}>Loại hình</label>
                       <select className={s.formInput} value={form.type || "HOMESTAY"} onChange={F("type")} style={{ cursor: "pointer" }}>
-                        <option value="HOMESTAY">🏡 Homestay</option>
-                        <option value="HOTEL">🏨 Hotel</option>
-                        <option value="VILLA">🏠 Villa</option>
-                        <option value="RESORT">🏖️ Resort</option>
+                        <option value="HOMESTAY">Homestay</option>
+                        <option value="HOTEL">Hotel</option>
+                        <option value="VILLA">Villa</option>
+                        <option value="RESORT">Resort</option>
                       </select>
+                    </div>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Quốc gia</label>
+                      <input className={s.formInput} value={form.country || "Việt Nam"} onChange={F("country")} />
+                    </div>
+                  </div>
+                  <div className={s.formRow}>
+                    <div className={s.formGroup}>
+                      <label className={s.formLabel}>Giá cơ bản / đêm (VNĐ) <span style={{ color: "#dc2626" }}>*</span></label>
+                      <input className={s.formInput} type="number" value={form.basePrice || ""} onChange={F("basePrice")} placeholder="VD: 850000" />
+                      {form.basePrice && <div style={{ fontSize: 11, color: "#0d9488", marginTop: 4, fontWeight: 600 }}>= {fmt(form.basePrice)}₫</div>}
                     </div>
                     <div className={s.formGroup}>
                       <label className={s.formLabel}>Quốc gia</label>
@@ -605,7 +633,7 @@ export default function AdminPage() {
 
               {/* Section 3: Hình ảnh */}
               <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, border: "1px solid #e2e8f0" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#ec4899", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>🖼️ Hình ảnh</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#ec4899", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>Hình ảnh</div>
                 <div className={s.formGroup}>
                   <label className={s.formLabel}>URL hình ảnh (mỗi dòng 1 URL)</label>
                   <textarea className={s.formInput} rows={3} value={Array.isArray(form.images) ? form.images.join("\n") : (form.imagesText || "")} onChange={e => setForm(p => ({ ...p, imagesText: e.target.value, images: e.target.value.split("\n").filter(Boolean) }))} placeholder={"https://images.unsplash.com/photo-xxx\nhttps://images.unsplash.com/photo-yyy"} style={{ resize: "vertical", fontSize: 12, fontFamily: "monospace" }} />
@@ -630,7 +658,7 @@ export default function AdminPage() {
             <div className={s.modalActions} style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
               <button className={s.modalCancelBtn} onClick={() => setModal(null)}>Huỷ bỏ</button>
               <button className={s.modalSubmitBtn} onClick={handleSave} style={{ minWidth: 120 }}>
-                {modal.mode === "create" ? "✨ Tạo mới" : "💾 Lưu thay đổi"}
+                {modal.mode === "create" ? "Tạo mới" : "Lưu thay đổi"}
               </button>
             </div>
           </div>
@@ -641,7 +669,7 @@ export default function AdminPage() {
       {confirmDel && (
         <div className={s.modalOverlay} onClick={() => setConfirmDel(null)}>
           <div className={s.modal} onClick={e => e.stopPropagation()} style={{ width: 420, textAlign: "center", padding: "36px 32px" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🗑️</div>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Trash2 size={28} color="#dc2626" /></div>
             <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "#0f172a" }}>Xác nhận xoá</h3>
             <p style={{ margin: "0 0 24px", color: "#64748b", fontSize: 14, lineHeight: 1.6 }}>
               Bạn có chắc muốn xoá <strong style={{ color: "#dc2626" }}>{confirmDel.name || "mục này"}</strong>?

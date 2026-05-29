@@ -9,7 +9,7 @@ import { authApi, bookingsApi, paymentsApi } from "@/lib/api";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [paymentMethod, setPaymentMethod] = useState("vnpay");
+  const [paymentMethod, setPaymentMethod] = useState("sepay");
   const [order, setOrder] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,7 @@ export default function CheckoutPage() {
 
       const newBooking = await bookingsApi.create(payload);
 
-      // 2. Create VNPay URL if paymentMethod is vnpay
+      // 2. Redirect based on payment method
       if (paymentMethod === 'vnpay') {
         const vnpayResponse = await paymentsApi.createVNPayUrl(newBooking.id);
         if (vnpayResponse && vnpayResponse.paymentUrl) {
@@ -94,6 +94,9 @@ export default function CheckoutPage() {
           alert('Không thể tạo link thanh toán VNPay');
           setProcessing(false);
         }
+      } else if (paymentMethod === 'sepay') {
+        sessionStorage.removeItem('pendingBooking');
+        router.push('/checkout/pay?bookingId=' + newBooking.id);
       } else {
         // If other methods are added later
         sessionStorage.removeItem('pendingBooking');
@@ -169,6 +172,14 @@ export default function CheckoutPage() {
                 <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#0f172a", marginBottom: "24px" }}>Phương thức thanh toán</h2>
                 
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={methodStyle(paymentMethod === "sepay")} onClick={() => setPaymentMethod("sepay")}>
+                    <Landmark size={24} color={paymentMethod === "sepay" ? "#0d9488" : "#64748b"} />
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a" }}>Chuyển khoản Ngân hàng (VietQR / MBBank)</span>
+                      <span style={{ fontSize: "13px", color: "#64748b", marginTop: "2px" }}>Tự động xác nhận trong 5 giây</span>
+                    </div>
+                  </div>
+
                   <div style={methodStyle(paymentMethod === "vnpay")} onClick={() => setPaymentMethod("vnpay")}>
                     <Landmark size={24} color={paymentMethod === "vnpay" ? "#0d9488" : "#64748b"} />
                     <span style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a" }}>Thanh toán qua VNPay</span>
