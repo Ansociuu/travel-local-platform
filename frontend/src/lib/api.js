@@ -214,6 +214,14 @@ export const uploadApi = {
       body: formData,
     });
   },
+  uploadImages: (files) => {
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append('files', file));
+    return apiRequest('/upload/images', {
+      method: 'POST',
+      body: formData,
+    });
+  },
 };
 
 export const adminApi = {

@@ -84,7 +84,14 @@ export class ChatService {
     });
   }
 
-  async createMessage(conversationId: string, senderId: string, content: string) {
+  async createMessage(
+    conversationId: string,
+    senderId: string,
+    content: string,
+    type: any = 'TEXT',
+    fileUrl?: string,
+    replyToId?: string
+  ) {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
     });
@@ -102,6 +109,9 @@ export class ChatService {
         conversationId, 
         senderId, 
         content,
+        type,
+        fileUrl,
+        replyToId,
         originalLanguage: senderLang,
       },
     });
@@ -198,6 +208,23 @@ export class ChatService {
         read: false,
       },
       data: { read: true },
+    });
+  }
+
+  async reactMessage(messageId: string, userId: string, reaction: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) return null;
+    
+    let reactions = (message.reactions as Record<string, string>) || {};
+    if (reactions[userId] === reaction) {
+      delete reactions[userId]; // toggle off
+    } else {
+      reactions[userId] = reaction;
+    }
+    
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { reactions },
     });
   }
 

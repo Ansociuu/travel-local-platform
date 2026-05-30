@@ -72,7 +72,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { conversationId: string; content: string },
+    @MessageBody() data: { conversationId: string; content: string; type?: any; fileUrl?: string; replyToId?: string },
   ) {
     const userId = (client as any).userId;
     if (!userId) return;
@@ -82,6 +82,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         data.conversationId,
         userId,
         data.content,
+        data.type,
+        data.fileUrl,
+        data.replyToId
       );
 
       const sender = await this.chatService.getUserInfo(userId);
@@ -160,6 +163,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Mark messages as read
     await this.chatService.markAsRead(data.conversationId, userId);
+    client.to(`conv:${data.conversationId}`).emit('messagesRead', {
+      conversationId: data.conversationId,
+      byUserId: userId,
+    });
 
     return { success: true };
   }
@@ -182,6 +189,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!userId) return;
 
     await this.chatService.markAsRead(data.conversationId, userId);
+    client.to(`conv:${data.conversationId}`).emit('messagesRead', {
+      conversationId: data.conversationId,
+      byUserId: userId,
+    });
     return { success: true };
   }
 
@@ -211,5 +222,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       conversationId: data.conversationId,
       userId,
     });
+  }
+
+  @SubscribeMessage('reactMessage')
+  async handleReactMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: string; reaction: string },
+  ) {
+    const userId = (client as any).userId;
+    if (!userId) return;
+
+    try {
+      const updatedMessage = await this.chatService.reactMessage(data.messageId, userId, data.reaction);
+      if (updatedMessage) {
+        this.server.to(`conv:${updatedMessage.conversationId}`).emit('messageUpdated', updatedMessage);
+        
+        // Also emit to personal rooms
+        const participantIds = await this.chatService.getConversationParticipants(updatedMessage.conversationId);
+        participantIds.forEach(uid => {
+          this.server.to(`user:${uid}`).emit('messageUpdated', updatedMessage);
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 }

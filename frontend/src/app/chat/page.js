@@ -1,12 +1,11 @@
 "use client";
-import { Suspense, useState, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Send, Search, ArrowLeft, MessageCircle } from "lucide-react";
+import { Send, Search, ArrowLeft, MessageCircle, Paperclip, Heart, Reply, CheckCheck, Globe } from "lucide-react";
 import s from "./chat.module.css";
-import { authApi, chatApi } from "@/lib/api";
+import { authApi, chatApi, uploadApi } from "@/lib/api";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
-import { Globe } from "lucide-react";
 
 const fmtTime = (d) => {
   if (!d) return "";
@@ -33,8 +32,9 @@ const getDateLabel = (d) => {
 
 const LANG_NAMES = { "en": "English", "vi": "Tiếng Việt", "ja": "Japanese", "ko": "Korean", "zh": "Chinese", "fr": "French", "es": "Spanish" };
 
-function MessageBubble({ msg, isMe, autoTranslate, userLang }) {
+function MessageBubble({ msg, isMe, autoTranslate, userLang, onReply, replyToMsg, isLastRead, otherUserAvatar }) {
   const [showOriginal, setShowOriginal] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const hasTranslation = msg.translatedContent && msg.translatedContent[userLang];
   const isDiffLang = msg.originalLanguage && msg.originalLanguage !== userLang;
   
@@ -44,11 +44,55 @@ function MessageBubble({ msg, isMe, autoTranslate, userLang }) {
 
   const langName = LANG_NAMES[msg.originalLanguage] || msg.originalLanguage;
 
+  const handleReact = (e) => {
+    e.stopPropagation();
+    const sock = getSocket();
+    if (sock) sock.emit('reactMessage', { messageId: msg.id, reaction: '❤️' });
+  };
+
+  const renderReactions = () => {
+    if (!msg.reactions) return null;
+    const reactionsList = Object.entries(msg.reactions);
+    if (reactionsList.length === 0) return null;
+    return (
+      <div className={s.reactionsContainer}>
+        {reactionsList.map(([uid, r]) => <span key={uid} className={s.reactionBadge}>{r}</span>)}
+      </div>
+    );
+  };
+
+  if (msg.type === 'SYSTEM') {
+    return (
+      <div className={s.systemMessage}>
+        <div className={s.systemContent} dangerouslySetInnerHTML={{ __html: msg.content }} />
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div 
+      className={s.messageWrapper}
+      onMouseEnter={() => setShowActions(true)} 
+      onMouseLeave={() => setShowActions(false)}
+    >
       <div className={isMe ? s.msgRowMe : s.msgRowOther}>
-        <div className={isMe ? s.msgBubbleMe : s.msgBubbleOther}>
-          <div>{displayContent}</div>
+        <div className={isMe ? s.msgBubbleMe : s.msgBubbleOther} style={{ position: 'relative' }}>
+          <div className={s.msgActions}>
+            <button className={s.actionBtn} onClick={handleReact} title="Thả tim"><Heart size={14}/></button>
+            <button className={s.actionBtn} onClick={() => onReply(msg)} title="Trả lời"><Reply size={14}/></button>
+          </div>
+          {replyToMsg && (
+            <div className={s.replyQuote}>
+              <Reply size={12} style={{marginRight: 4}}/>
+              {replyToMsg.type === 'IMAGE' ? (
+                <img src={replyToMsg.fileUrl} style={{maxHeight: '40px', borderRadius: '4px', marginLeft: '4px'}} alt="reply-thumb" />
+              ) : replyToMsg.content}
+            </div>
+          )}
+          {msg.type === 'IMAGE' && msg.fileUrl && (
+            <img src={msg.fileUrl} alt="attachment" className={s.msgImage} />
+          )}
+          {msg.content && <div>{displayContent}</div>}
           {(autoTranslate && isDiffLang && hasTranslation) && (
             <div className={s.translateMeta}>
               <span className={s.translatedFrom}>Translated from {langName}</span>
@@ -57,11 +101,17 @@ function MessageBubble({ msg, isMe, autoTranslate, userLang }) {
               </button>
             </div>
           )}
+          {renderReactions()}
         </div>
       </div>
       <div className={isMe ? s.msgTimeMe : s.msgTimeOther}>
         {fmtMsgTime(msg.createdAt)}
       </div>
+      {isMe && isLastRead && (
+        <div style={{textAlign: 'right', marginTop: '2px'}}>
+           <img src={otherUserAvatar} style={{width: 14, height: 14, borderRadius: '50%', objectFit: 'cover'}} alt="seen" title="Đã xem" />
+        </div>
+      )}
     </div>
   );
 }
@@ -90,12 +140,21 @@ function ChatPageContent() {
   const [messagesError, setMessagesError] = useState("");
   const [userLang, setUserLang] = useState("vi");
   const [autoTranslate, setAutoTranslate] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeout = useRef(null);
+  const fileInputRef = useRef(null);
   const appliedQueryConversationId = useRef("");
   const activeConvRef = useRef(null); // Always up-to-date, avoids stale closure in socket handlers
   const queryConversationId = searchParams?.get("conversationId") || "";
   const activeConversationId = activeConv?.id || "";
+
+  const lastReadMsgId = useMemo(() => {
+    if (!user) return null;
+    const myReadMsgs = messages.filter(m => m.senderId === user.id && m.read);
+    return myReadMsgs.length > 0 ? myReadMsgs[myReadMsgs.length - 1].id : null;
+  }, [messages, user]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -169,6 +228,12 @@ function ChatPageContent() {
         }
 
         console.log("[newMessage] ADDED to state:", msg.id);
+        
+        // Emitting markRead if we are in this conversation
+        if (activeConvRef.current && msg.conversationId === activeConvRef.current.id && msg.senderId !== user?.id) {
+           setTimeout(() => sock.emit('markRead', { conversationId: msg.conversationId }), 500);
+        }
+        
         return [...prev, msg];
       });
       // Update conversation list
@@ -194,6 +259,10 @@ function ChatPageContent() {
             : c
         ).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt))
       );
+    });
+
+    sock.on("messagesRead", (data) => {
+      setMessages((prev) => prev.map(m => (m.senderId === user.id && m.conversationId === data.conversationId) ? { ...m, read: true } : m));
     });
 
     sock.on("messageUpdated", (updatedMsg) => {
@@ -279,7 +348,7 @@ function ChatPageContent() {
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages.length]);
 
   // Search users
   useEffect(() => {
@@ -292,21 +361,28 @@ function ChatPageContent() {
   }, [search]);
 
   const sendMessage = useCallback(async () => {
-    if (!input.trim() || !activeConv) return;
+    if ((!input.trim() && !uploading) || !activeConv) return;
     const sock = getSocket();
     if (!sock) return;
 
     const content = input.trim();
     setInput("");
 
-    sock.emit("sendMessage", { conversationId: activeConv.id, content });
+    const payload = { 
+      conversationId: activeConv.id, 
+      content,
+      type: 'TEXT',
+      replyToId: replyingTo?.id || null 
+    };
+
+    setReplyingTo(null);
+    sock.emit("sendMessage", payload);
 
     // Optimistic update
     const optimistic = {
       id: "temp-" + Date.now(),
-      conversationId: activeConv.id,
+      ...payload,
       senderId: user.id,
-      content,
       read: false,
       createdAt: new Date().toISOString(),
     };
@@ -314,7 +390,47 @@ function ChatPageContent() {
 
     // Emit stop typing
     sock.emit("stopTyping", { conversationId: activeConv.id });
-  }, [input, activeConv, user]);
+  }, [input, activeConv, user, replyingTo, uploading]);
+
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !activeConv) return;
+    
+    try {
+      setUploading(true);
+      const res = await uploadApi.uploadImages(files); // array of {url, public_id}
+      const sock = getSocket();
+      
+      res.forEach(uploaded => {
+        const payload = {
+          conversationId: activeConv.id,
+          content: "",
+          type: 'IMAGE',
+          fileUrl: uploaded.url,
+          replyToId: replyingTo?.id || null,
+        };
+        
+        sock.emit("sendMessage", payload);
+        
+        const optimistic = {
+          id: "temp-" + Date.now() + Math.random(),
+          ...payload,
+          senderId: user.id,
+          read: false,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, optimistic]);
+      });
+      
+      setReplyingTo(null);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Không thể tải ảnh lên");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -497,29 +613,56 @@ function ChatPageContent() {
               const isMe = msg.senderId === user.id;
               return (
                 <MessageBubble 
-                  key={msg.id} 
+                  key={msg.id || i} 
                   msg={msg} 
                   isMe={isMe} 
                   autoTranslate={autoTranslate} 
                   userLang={userLang} 
+                  onReply={setReplyingTo}
+                  replyToMsg={msg.replyToId ? messages.find(m => m.id === msg.replyToId) : null}
+                  isLastRead={msg.id === lastReadMsgId}
+                  otherUserAvatar={otherUser?.avatar || `https://ui-avatars.com/api/?name=${otherUser?.name || "U"}&background=0d9488&color=fff`}
                 />
               );
             })}
+            
+            {typing?.conversationId === activeConv.id && (
+              <div className={s.msgRowOther}>
+                <div className={s.typingBubble}>
+                   <span className={s.typingDot}></span>
+                   <span className={s.typingDot}></span>
+                   <span className={s.typingDot}></span>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className={s.inputArea}>
-            <textarea
-              className={s.msgInput}
-              placeholder="Nhập tin nhắn..."
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
-            <button className={s.sendBtn} onClick={sendMessage} disabled={!input.trim()}>
-              <Send size={20} />
-            </button>
+          <div className={s.inputContainerWrapper}>
+            {replyingTo && (
+              <div className={s.replyingToBanner}>
+                <span>Đang trả lời: {replyingTo.type === 'IMAGE' ? '[Hình ảnh]' : replyingTo.content}</span>
+                <button className={s.cancelReplyBtn} onClick={() => setReplyingTo(null)}>x</button>
+              </div>
+            )}
+            <div className={s.inputArea}>
+              <button className={s.attachBtn} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                <Paperclip size={20} />
+              </button>
+              <input type="file" hidden multiple ref={fileInputRef} onChange={handleFileUpload} accept="image/*" />
+              <textarea
+                className={s.msgInput}
+                placeholder={uploading ? "Đang tải ảnh lên..." : "Nhập tin nhắn..."}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                disabled={uploading}
+              />
+              <button className={s.sendBtn} onClick={sendMessage} disabled={(!input.trim() && !uploading) || uploading}>
+                <Send size={20} />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
