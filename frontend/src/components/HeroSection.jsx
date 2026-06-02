@@ -315,27 +315,27 @@ export default function HeroSection() {
         {/* CONTAINER WITH YELLLOW BORDER */}
         <div style={{
           background: "#fff",
-          padding: "4px",
-          borderRadius: "16px",
-          boxShadow: activePicker !== null ? "0 20px 60px rgba(0,0,0,0.15)" : "0 10px 40px rgba(0,0,0,0.08)",
-          border: activePicker !== null ? "4px solid #ffb700" : "4px solid #ffb700", // Booking.com Yellow/Orange
-          transition: "box-shadow 0.3s ease"
+          padding: "10px",
+          borderRadius: "24px",
+          boxShadow: activePicker !== null ? "0 20px 60px rgba(0,0,0,0.12)" : "0 10px 40px rgba(0,0,0,0.06)",
+          border: "1px solid rgba(0,0,0,0.05)",
+          transition: "all 0.3s ease"
         }}>
-          <div className="search-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "4px", alignItems: "stretch" }}>
+          <div className="search-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr auto", gap: "10px", alignItems: "stretch" }}>
 
             {/* DESTINATION INPUT */}
             <div 
               onClick={() => setActivePicker("destination")}
-              style={{ position: "relative", background: "#f1f5f9", borderRadius: "12px", padding: "12px 16px", border: activePicker === "destination" ? "1px solid #ffb700" : "1px solid transparent", cursor: "pointer", textAlign: "left" }}
+              style={{ position: "relative", background: "#f8fafc", borderRadius: "16px", padding: "14px 18px", border: "1px solid transparent", cursor: "pointer", textAlign: "left" }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>
-                <MapPin size={12} /> Điểm đến
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                <MapPin size={12} color="#0d9488" /> Điểm đến
               </div>
               <input
-                placeholder={`VD: ${textOptions[(bgIndex + 1) % textOptions.length]}...`}
+                placeholder="VD: Hội An..."
                 value={destQuery}
                 onChange={(e) => setDestQuery(e.target.value)}
-                style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", border: "none", outline: "none", background: "transparent", width: "100%" }}
+                style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a", border: "none", outline: "none", background: "transparent", width: "100%", padding: 0 }}
               />
 
               {activePicker === "destination" && (
@@ -361,18 +361,21 @@ export default function HeroSection() {
             {/* DATE RANGE SELECTOR */}
             <div 
               onClick={(e) => { if (activePicker !== "dates") setActivePicker("dates"); }}
-              style={{ position: "relative", background: "#f1f5f9", borderRadius: "12px", padding: "12px 16px", border: activePicker === "dates" ? "1px solid #ffb700" : "1px solid transparent", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", justifyContent: "center" }}
+              style={{ position: "relative", background: "#f8fafc", borderRadius: "16px", padding: "14px 18px", border: "1px solid transparent", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>
-                <Calendar size={12} /> {activeTab === "tour" ? "Ngày đi" : "Nhận phòng — Trả phòng"}
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                  <Calendar size={12} color="#0d9488" /> {activeTab === "tour" ? "Ngày đi" : "Nhận phòng — Trả phòng"}
+                </div>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: (startDate || endDate) ? "#0f172a" : "#64748b" }}>
+                  {startDate ? (
+                    endDate ? `${formatDateShort(startDate)} — ${formatDateShort(endDate)}` : `${formatDateShort(startDate)} — ...`
+                  ) : (
+                    "nn/mm/yyyy"
+                  )}
+                </div>
               </div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: (startDate || endDate) ? "#0f172a" : "#64748b" }}>
-                {startDate ? (
-                  endDate ? `${formatDateShort(startDate)} — ${formatDateShort(endDate)}` : `${formatDateShort(startDate)} — ...`
-                ) : (
-                  activeTab === "tour" ? "Chọn ngày đi" : "Nhận phòng — Trả phòng"
-                )}
-              </div>
+              <Calendar size={16} color="#64748b" style={{ flexShrink: 0, marginLeft: "12px" }} />
 
               {/* CUSTOM CALENDAR POPULAR PICKER */}
               {activePicker === "dates" && (
@@ -610,140 +613,175 @@ export default function HeroSection() {
               )}
             </div>
 
-            {/* GUESTS / ROOM SELECTOR */}
-            <div 
-              onClick={(e) => { if (activePicker !== "guests") setActivePicker("guests"); }}
-              style={{ position: "relative", background: "#f1f5f9", borderRadius: "12px", padding: "12px 16px", border: activePicker === "guests" ? "1px solid #ffb700" : "1px solid transparent", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", justifyContent: "center" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>
-                <Users size={12} /> Số khách & Phòng
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>{adults} người lớn · {childrenCount} trẻ em · {rooms} phòng</span>
-                <ChevronDown size={14} color="#64748b" />
-              </div>
-
-              {/* CUSTOM GUEST COUNT POPUP */}
-              {activePicker === "guests" && (
-                <div 
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  style={{ position: "absolute", top: "105%", right: 0, marginTop: "8px", background: "#ffffff", borderRadius: "16px", border: "1px solid rgba(0,0,0,0.08)", boxShadow: "0 20px 50px rgba(0,0,0,0.15)", padding: "20px", zIndex: 120, width: "290px", display: "flex", flexDirection: "column", gap: "16px" }}
-                >
-                  {/* ADULTS */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>Người lớn</div>
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>Từ 18 tuổi trở lên</div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <button 
-                        disabled={adults <= 1}
-                        onClick={() => setAdults(adults - 1)}
-                        style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: adults <= 1 ? "default" : "pointer", opacity: adults <= 1 ? 0.5 : 1 }}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span style={{ width: "20px", textAlign: "center", fontWeight: 700, fontSize: "15px" }}>{adults}</span>
-                      <button 
-                        onClick={() => setAdults(adults + 1)}
-                        style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: "pointer" }}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
+            {/* THIRD COLUMN: DURATION (TOUR) OR GUESTS (HOMESTAY) */}
+            {activeTab === "tour" ? (
+              <div style={{ position: "relative", background: "#f8fafc", borderRadius: "16px", padding: "14px 18px", border: "1px solid transparent", display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                    <Clock size={12} color="#0d9488" /> Thời gian
                   </div>
-
-                  {/* CHILDREN */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>Trẻ em</div>
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>Từ 0 đến 17 tuổi</div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <button 
-                        disabled={childrenCount <= 0}
-                        onClick={() => setChildrenCount(childrenCount - 1)}
-                        style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: childrenCount <= 0 ? "default" : "pointer", opacity: childrenCount <= 0 ? 0.5 : 1 }}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span style={{ width: "20px", textAlign: "center", fontWeight: 700, fontSize: "15px" }}>{childrenCount}</span>
-                      <button 
-                        onClick={() => setChildrenCount(childrenCount + 1)}
-                        style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: "pointer" }}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ROOMS */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>Phòng</div>
-                      <div style={{ fontSize: "12px", color: "#64748b" }}>Số lượng phòng cần đặt</div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <button 
-                        disabled={rooms <= 1}
-                        onClick={() => setRooms(rooms - 1)}
-                        style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: rooms <= 1 ? "default" : "pointer", opacity: rooms <= 1 ? 0.5 : 1 }}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span style={{ width: "20px", textAlign: "center", fontWeight: 700, fontSize: "15px" }}>{rooms}</span>
-                      <button 
-                        onClick={() => setRooms(rooms + 1)}
-                        style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: "pointer" }}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* DONE BUTTON */}
-                  <button 
-                    onClick={() => setActivePicker(null)}
-                    style={{ background: "#0068ff", color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: 700, fontSize: "14px", cursor: "pointer", transition: "background 0.2s" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#0056d6"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "#0068ff"}
+                  <select 
+                    style={{ 
+                      fontSize: "15px", 
+                      fontWeight: 700, 
+                      color: "#0f172a", 
+                      border: "none", 
+                      outline: "none", 
+                      background: "transparent", 
+                      width: "100%", 
+                      appearance: "none", 
+                      cursor: "pointer",
+                      padding: 0
+                    }}
                   >
-                    Xong
-                  </button>
+                    <option value="2-3">2 - 3 ngày</option>
+                    <option value="4-5">4 - 5 ngày</option>
+                    <option value="7">1 tuần</option>
+                    <option value="14">2 tuần+</option>
+                  </select>
                 </div>
-              )}
-            </div>
+                <ChevronDown size={16} color="#64748b" style={{ pointerEvents: "none", flexShrink: 0, marginLeft: "12px" }} />
+              </div>
+            ) : (
+              <div 
+                onClick={(e) => { if (activePicker !== "guests") setActivePicker("guests"); }}
+                style={{ position: "relative", background: "#f8fafc", borderRadius: "16px", padding: "14px 18px", border: "1px solid transparent", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#0d9488", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+                    <Users size={12} color="#0d9488" /> Số khách & Phòng
+                  </div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {adults} người lớn · {childrenCount} trẻ em · {rooms} phòng
+                  </div>
+                </div>
+                <ChevronDown size={16} color="#64748b" style={{ flexShrink: 0, marginLeft: "12px" }} />
 
-            {/* SEARCH BUTTON (Booking.com style blue button) */}
+                {/* CUSTOM GUEST COUNT POPUP */}
+                {activePicker === "guests" && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    style={{ position: "absolute", top: "105%", right: 0, marginTop: "8px", background: "#ffffff", borderRadius: "16px", border: "1px solid rgba(0,0,0,0.08)", boxShadow: "0 20px 50px rgba(0,0,0,0.15)", padding: "20px", zIndex: 120, width: "290px", display: "flex", flexDirection: "column", gap: "16px" }}
+                  >
+                    {/* ADULTS */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>Người lớn</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Từ 18 tuổi trở lên</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <button 
+                          disabled={adults <= 1}
+                          onClick={() => setAdults(adults - 1)}
+                          style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: adults <= 1 ? "default" : "pointer", opacity: adults <= 1 ? 0.5 : 1 }}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span style={{ width: "20px", textAlign: "center", fontWeight: 700, fontSize: "15px" }}>{adults}</span>
+                        <button 
+                          onClick={() => setAdults(adults + 1)}
+                          style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: "pointer" }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* CHILDREN */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>Trẻ em</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Từ 0 đến 17 tuổi</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <button 
+                          disabled={childrenCount <= 0}
+                          onClick={() => setChildrenCount(childrenCount - 1)}
+                          style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: childrenCount <= 0 ? "default" : "pointer", opacity: childrenCount <= 0 ? 0.5 : 1 }}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span style={{ width: "20px", textAlign: "center", fontWeight: 700, fontSize: "15px" }}>{childrenCount}</span>
+                        <button 
+                          onClick={() => setChildrenCount(childrenCount + 1)}
+                          style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: "pointer" }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ROOMS */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "15px", color: "#0f172a" }}>Phòng</div>
+                        <div style={{ fontSize: "12px", color: "#64748b" }}>Số lượng phòng cần đặt</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <button 
+                          disabled={rooms <= 1}
+                          onClick={() => setRooms(rooms - 1)}
+                          style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: rooms <= 1 ? "default" : "pointer", opacity: rooms <= 1 ? 0.5 : 1 }}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span style={{ width: "20px", textAlign: "center", fontWeight: 700, fontSize: "15px" }}>{rooms}</span>
+                        <button 
+                          onClick={() => setRooms(rooms + 1)}
+                          style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid #cbd5e1", background: "#fff", display: "flex", alignItems: "center", justifyCenter: "center", justifyContent: "center", cursor: "pointer" }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* DONE BUTTON */}
+                    <button 
+                      onClick={() => setActivePicker(null)}
+                      style={{ background: "#0068ff", color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: 700, fontSize: "14px", cursor: "pointer", transition: "background 0.2s" }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "#0056d6"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "#0068ff"}
+                    >
+                      Xong
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SEARCH BUTTON */}
             <button 
               onClick={handleSearchSubmit}
               style={{
-                borderRadius: "12px",
-                padding: "0 28px",
+                borderRadius: "16px",
+                padding: "0 32px",
                 color: "#fff",
                 fontWeight: 800,
                 fontSize: "16px",
                 cursor: "pointer",
-                border: "none",
-                background: "linear-gradient(135deg, #0068FF, #0047B2)",
-                boxShadow: "0 4px 15px rgba(0, 104, 255, 0.3)",
+                border: "1.5px solid #000000",
+                background: "#0d9488",
+                boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: "8px",
-                transition: "all 0.2s ease"
+                transition: "all 0.2s ease",
+                fontFamily: "'Inter', sans-serif"
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = "0 6px 20px rgba(0, 104, 255, 0.4)";
+                e.currentTarget.style.background = "#0b7a70";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(13, 148, 136, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "none";
-                e.currentTarget.style.boxShadow = "0 4px 15px rgba(0, 104, 255, 0.3)";
+                e.currentTarget.style.background = "#0d9488";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(13, 148, 136, 0.2)";
               }}
             >
-              <Search size={18} />
-              Tìm kiếm
+              Khám phá
             </button>
 
           </div>
