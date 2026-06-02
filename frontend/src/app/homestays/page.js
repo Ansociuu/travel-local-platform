@@ -35,6 +35,33 @@ export default function HomestaysPage() {
   const [hasSelectedDate, setHasSelectedDate] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const loc = params.get("location");
+      const gst = params.get("guests");
+      const sDate = params.get("startDate");
+      const eDate = params.get("endDate");
+      
+      if (loc) {
+        setSearchQuery(loc);
+      }
+      if (gst) {
+        setGuests(parseInt(gst));
+      }
+      if (sDate && eDate) {
+        setDateRange([
+          {
+            startDate: new Date(sDate),
+            endDate: new Date(eDate),
+            key: 'selection'
+          }
+        ]);
+        setHasSelectedDate(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchHomestays = async () => {
       try {
         const data = await hotelsApi.getAll();

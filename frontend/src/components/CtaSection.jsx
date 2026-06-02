@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { PlaneTakeoff, Mail, Gift, CheckCircle } from "lucide-react";
 
 export default function CtaSection() {
@@ -57,9 +58,11 @@ export default function CtaSection() {
         )}
 
         <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-          <button style={{ background: "#f8fafc", border: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", padding: "14px 36px", borderRadius: "14px", cursor: "pointer", fontSize: "15px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s" }} onClick={() => scrollTo("tours")} onMouseEnter={e => { e.target.style.background = "#f1f5f9"; e.target.style.borderColor = "rgba(0,0,0,0.1)"; }} onMouseLeave={e => { e.target.style.background = "#f8fafc"; e.target.style.borderColor = "rgba(0,0,0,0.05)"; }}>
-            Xem tất cả tour →
-          </button>
+          <Link href="/tours">
+            <button style={{ background: "#f8fafc", border: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", padding: "14px 36px", borderRadius: "14px", cursor: "pointer", fontSize: "15px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s" }} onMouseEnter={e => { e.target.style.background = "#f1f5f9"; e.target.style.borderColor = "rgba(0,0,0,0.1)"; }} onMouseLeave={e => { e.target.style.background = "#f8fafc"; e.target.style.borderColor = "rgba(0,0,0,0.05)"; }}>
+              Xem tất cả tour →
+            </button>
+          </Link>
         </div>
       </div>
     </section>

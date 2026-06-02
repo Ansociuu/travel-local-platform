@@ -46,6 +46,26 @@ export default function ToursPage() {
   const filteredTourNames = tours.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()) && searchQuery);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const loc = params.get("location");
+      const gst = params.get("guests");
+      const sDate = params.get("date");
+      
+      if (loc) {
+        setSearchQuery(loc);
+      }
+      if (gst) {
+        setGuests(parseInt(gst));
+      }
+      if (sDate) {
+        setSelectedDate(new Date(sDate));
+        setHasSelectedDate(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchTours = async () => {
       try {
         const data = await toursApi.getAll();

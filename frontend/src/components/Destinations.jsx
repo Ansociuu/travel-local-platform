@@ -87,7 +87,7 @@ export default function Destinations() {
               <span style={{ color: "#d97706" }}>yêu thích nhất</span>
             </h2>
           </div>
-          <button style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", color: "#475569", padding: "10px 24px", borderRadius: "12px", cursor: "pointer", fontSize: "13px", fontWeight: 600, fontFamily: "'Inter', sans-serif", transition: "all 0.2s", boxShadow: "0 4px 10px rgba(0,0,0,0.02)" }} onMouseEnter={e => {e.target.style.background="#f8fafc"; e.target.style.color="#0f172a";}} onMouseLeave={e => {e.target.style.background="#ffffff"; e.target.style.color="#475569";}}>Xem tất cả →</button>
+          <button onClick={() => router.push('/tours')} style={{ background: "#ffffff", border: "1px solid rgba(0,0,0,0.08)", color: "#475569", padding: "10px 24px", borderRadius: "12px", cursor: "pointer", fontSize: "13px", fontWeight: 600, fontFamily: "'Inter', sans-serif", transition: "all 0.2s", boxShadow: "0 4px 10px rgba(0,0,0,0.02)" }} onMouseEnter={e => {e.target.style.background="#f8fafc"; e.target.style.color="#0f172a";}} onMouseLeave={e => {e.target.style.background="#ffffff"; e.target.style.color="#475569";}}>Xem tất cả →</button>
         </div>
 
         {/* Region filter */}
@@ -131,7 +131,7 @@ export default function Destinations() {
                     <span style={{ fontSize: "18px", fontWeight: 800, color: "#0d9488" }}>₫{dest.price}</span>
                     <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 500 }}>/người</span>
                   </div>
-                  <button style={{ background: "rgba(13,148,136,0.1)", border: "1px solid rgba(13,148,136,0.2)", color: "#0d9488", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700, fontFamily: "'Inter', sans-serif", transition: "all 0.2s" }} onMouseEnter={e => { e.target.style.background = "#0d9488"; e.target.style.color = "#fff"; }} onMouseLeave={e => { e.target.style.background = "rgba(13,148,136,0.1)"; e.target.style.color = "#0d9488"; }}>Đặt ngay</button>
+                  <button onClick={(e) => { e.stopPropagation(); router.push(`/tours/${dest.id}`); }} style={{ background: "rgba(13,148,136,0.1)", border: "1px solid rgba(13,148,136,0.2)", color: "#0d9488", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700, fontFamily: "'Inter', sans-serif", transition: "all 0.2s" }} onMouseEnter={e => { e.target.style.background = "#0d9488"; e.target.style.color = "#fff"; }} onMouseLeave={e => { e.target.style.background = "rgba(13,148,136,0.1)"; e.target.style.color = "#0d9488"; }}>Đặt ngay</button>
                 </div>
               </div>
             </div>

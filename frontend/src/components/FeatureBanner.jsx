@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ShieldCheck, CreditCard, HeadphonesIcon, Award } from "lucide-react";
 
 export default function FeatureBanner() {
@@ -20,8 +21,12 @@ export default function FeatureBanner() {
             </h2>
             <p style={{ color: "#475569", lineHeight: 1.7, marginBottom: "32px", fontSize: "16px", fontWeight: 500 }}>Đặt trước 30 ngày để nhận ưu đãi tốt nhất. Áp dụng cho tất cả tour và homestay cao cấp trên toàn quốc.</p>
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-              <button className="shimmer-btn" style={{ color: "#fff", padding: "14px 32px", borderRadius: "12px", cursor: "pointer", fontSize: "15px", fontWeight: 700, border: "none", boxShadow: "0 4px 20px rgba(13,148,136,0.3)" }}>Khám phá ưu đãi</button>
-              <button style={{ background: "#f8fafc", border: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", padding: "14px 32px", borderRadius: "12px", cursor: "pointer", fontSize: "15px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s", boxShadow: "0 4px 10px rgba(0,0,0,0.02)" }} onMouseEnter={e => { e.target.style.background = "#f1f5f9"; e.target.style.borderColor = "rgba(0,0,0,0.1)"; }} onMouseLeave={e => { e.target.style.background = "#f8fafc"; e.target.style.borderColor = "rgba(0,0,0,0.05)"; }}>Tìm hiểu thêm</button>
+              <Link href="/tours">
+                <button className="shimmer-btn" style={{ color: "#fff", padding: "14px 32px", borderRadius: "12px", cursor: "pointer", fontSize: "15px", fontWeight: 700, border: "none", boxShadow: "0 4px 20px rgba(13,148,136,0.3)" }}>Khám phá ưu đãi</button>
+              </Link>
+              <Link href="/homestays">
+                <button style={{ background: "#f8fafc", border: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", padding: "14px 32px", borderRadius: "12px", cursor: "pointer", fontSize: "15px", fontFamily: "'Inter', sans-serif", fontWeight: 700, transition: "all 0.2s", boxShadow: "0 4px 10px rgba(0,0,0,0.02)" }} onMouseEnter={e => { e.target.style.background = "#f1f5f9"; e.target.style.borderColor = "rgba(0,0,0,0.1)"; }} onMouseLeave={e => { e.target.style.background = "#f8fafc"; e.target.style.borderColor = "rgba(0,0,0,0.05)"; }}>Tìm hiểu thêm</button>
+              </Link>
             </div>
           </div>
           <div className="feat-feat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>

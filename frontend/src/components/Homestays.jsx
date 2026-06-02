@@ -94,7 +94,7 @@ export default function Homestays() {
                     <span style={{ fontSize: "22px", fontWeight: 800, color: "#d97706" }}>₫{h.price}</span>
                     <span style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 500 }}>/{h.per}</span>
                   </div>
-                  <button style={{ background: "rgba(217,119,6,0.1)", border: "1px solid rgba(217,119,6,0.2)", color: "#d97706", padding: "8px 20px", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: 700, fontFamily: "'Inter', sans-serif", transition: "all 0.2s" }} onMouseEnter={e => { e.target.style.background = "#d97706"; e.target.style.color = "#fff"; }} onMouseLeave={e => { e.target.style.background = "rgba(217,119,6,0.1)"; e.target.style.color = "#d97706"; }}>Chi tiết</button>
+                  <button onClick={(e) => { e.stopPropagation(); router.push(`/homestays/${h.id}`); }} style={{ background: "rgba(217,119,6,0.1)", border: "1px solid rgba(217,119,6,0.2)", color: "#d97706", padding: "8px 20px", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: 700, fontFamily: "'Inter', sans-serif", transition: "all 0.2s" }} onMouseEnter={e => { e.target.style.background = "#d97706"; e.target.style.color = "#fff"; }} onMouseLeave={e => { e.target.style.background = "rgba(217,119,6,0.1)"; e.target.style.color = "#d97706"; }}>Chi tiết</button>
                 </div>
               </div>
             </div>
