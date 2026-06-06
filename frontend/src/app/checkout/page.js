@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { CreditCard, Wallet, Landmark, ChevronLeft, Lock } from "lucide-react";
-import { authApi, bookingsApi, paymentsApi } from "@/lib/api";
+import { CreditCard, Wallet, Landmark, ChevronLeft, Lock, Tag } from "lucide-react";
+import { authApi, bookingsApi, paymentsApi, couponsApi } from "@/lib/api";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -14,6 +14,11 @@ export default function CheckoutPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+
+  const [couponCode, setCouponCode] = useState("");
+  const [couponData, setCouponData] = useState(null);
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const [formData, setFormData] = useState({
     guestName: '',
@@ -62,6 +67,9 @@ export default function CheckoutPage() {
         guestEmail: formData.guestEmail,
         guestPhone: formData.guestPhone,
         specialRequest: formData.specialRequest,
+        couponCode: couponData?.code || null,
+        discountAmount: couponData?.discountAmount || 0,
+        finalAmount: couponData ? couponData.finalAmount : order.totalAmount,
       };
 
       if (order.type === 'tour') {
@@ -106,6 +114,21 @@ export default function CheckoutPage() {
       console.error(error);
       alert('Đã xảy ra lỗi khi tạo đơn hàng: ' + (error.message || ''));
       setProcessing(false);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError("");
+    try {
+      const data = await couponsApi.validate(couponCode, order.totalAmount);
+      setCouponData(data);
+    } catch (err) {
+      setCouponError(err.message || "Mã không hợp lệ");
+      setCouponData(null);
+    } finally {
+      setValidatingCoupon(false);
     }
   };
 
@@ -231,9 +254,29 @@ export default function CheckoutPage() {
                 <span>₫{Number(order.totalAmount).toLocaleString()}</span>
               </div>
 
+              {/* COUPON SECTION */}
+              <div style={{ marginBottom: "24px", paddingTop: "16px", borderTop: "1px dashed rgba(0,0,0,0.1)" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Mã giảm giá</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Nhập mã (VD: SALE50)" style={{ ...inputStyle, padding: "12px", textTransform: "uppercase" }} disabled={!!couponData} />
+                  {!couponData ? (
+                    <button type="button" onClick={handleApplyCoupon} disabled={validatingCoupon || !couponCode.trim()} style={{ background: "#0f172a", color: "white", border: "none", padding: "0 20px", borderRadius: "12px", fontWeight: 700, cursor: validatingCoupon ? "not-allowed" : "pointer" }}>{validatingCoupon ? "..." : "Áp dụng"}</button>
+                  ) : (
+                    <button type="button" onClick={() => { setCouponData(null); setCouponCode(""); }} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "0 20px", borderRadius: "12px", fontWeight: 700, cursor: "pointer" }}>Huỷ</button>
+                  )}
+                </div>
+                {couponError && <div style={{ fontSize: "13px", color: "#dc2626", marginTop: "8px", fontWeight: 500 }}>{couponError}</div>}
+                {couponData && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#059669", fontWeight: 600, marginTop: "12px" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Tag size={14} /> Đã áp dụng mã {couponData.code}</span>
+                    <span>-₫{couponData.discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: "24px", paddingTop: "24px", borderTop: "1px solid rgba(0,0,0,0.1)", fontSize: "20px", color: "#0f172a", fontWeight: 800 }}>
                 <span>Tổng cộng</span>
-                <span style={{ color: "#0d9488" }}>₫{Number(order.totalAmount).toLocaleString()}</span>
+                <span style={{ color: "#0d9488" }}>₫{couponData ? couponData.finalAmount.toLocaleString() : Number(order.totalAmount).toLocaleString()}</span>
               </div>
 
               <p style={{ fontSize: "13px", color: "#64748b", fontWeight: 500, textAlign: "center", marginTop: "24px", lineHeight: 1.5 }}>

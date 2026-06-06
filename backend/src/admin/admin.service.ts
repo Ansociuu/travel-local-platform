@@ -574,4 +574,40 @@ export class AdminService {
     if (!hotel) throw new NotFoundException('Homestay không tồn tại');
     return this.prisma.hotel.delete({ where: { id: hotelId } });
   }
+
+  // ===================== REVIEWS =====================
+
+  async getAllReviews(userId: string) {
+    await this.assertAdmin(userId);
+    return this.prisma.review.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true, avatar: true } },
+        hotel: { select: { id: true, name: true } },
+        tour: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async deleteReview(adminId: string, reviewId: string) {
+    await this.assertAdmin(adminId);
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException('Review không tồn tại');
+
+    // Recalculate hotel/tour rating if needed
+    const deleted = await this.prisma.review.delete({ where: { id: reviewId } });
+
+    if (deleted.hotelId) {
+      const agg = await this.prisma.review.aggregate({
+        where: { hotelId: deleted.hotelId },
+        _avg: { rating: true },
+      });
+      await this.prisma.hotel.update({
+        where: { id: deleted.hotelId },
+        data: { rating: agg._avg.rating || 0 },
+      });
+    }
+
+    return { message: 'Xoá review thành công' };
+  }
 }

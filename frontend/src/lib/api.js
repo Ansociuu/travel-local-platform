@@ -139,17 +139,12 @@ export const ownerApi = {
     method: 'DELETE',
   }),
   getRooms: (hotelId) => apiRequest(`/owner/hotels/${hotelId}/rooms`),
-  createRoom: (hotelId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms`, {
-    method: 'POST',
-    body: data,
-  }),
-  updateRoom: (hotelId, roomId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}`, {
-    method: 'PATCH',
-    body: data,
-  }),
-  deleteRoom: (hotelId, roomId) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}`, {
-    method: 'DELETE',
-  }),
+  createRoom: (hotelId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms`, { method: 'POST', body: data }),
+  updateRoom: (hotelId, roomId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}`, { method: 'PATCH', body: data }),
+  deleteRoom: (hotelId, roomId) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}`, { method: 'DELETE' }),
+  getRoomAvailability: (hotelId, roomId, startDate, endDate) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}/availability?startDate=${startDate}&endDate=${endDate}`),
+  setRoomAvailability: (hotelId, roomId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}/availability`, { method: 'POST', body: { data } }),
+
   getBookings: () => apiRequest('/owner/bookings'),
   updateBookingStatus: (id, status) => apiRequest(`/owner/bookings/${id}/status`, {
     method: 'PATCH',
@@ -272,6 +267,9 @@ export const adminApi = {
     method: 'PATCH',
     body: { status, note },
   }),
+  // Reviews
+  getAllReviews: () => apiRequest('/admin/reviews'),
+  deleteReview: (id) => apiRequest(`/admin/reviews/${id}`, { method: 'DELETE' }),
 };
 
 export const chatApi = {
@@ -283,4 +281,15 @@ export const chatApi = {
   getMessages: (conversationId, skip = 0) => apiRequest(`/chat/conversations/${conversationId}/messages?take=50&skip=${skip}`),
   getUnreadCount: () => apiRequest('/chat/unread'),
   searchUsers: (q) => apiRequest(`/chat/users/search?q=${encodeURIComponent(q)}`),
+};
+
+export const couponsApi = {
+  getAll: () => apiRequest('/coupons'),
+  create: (data) => apiRequest('/coupons', { method: 'POST', body: data }),
+  update: (id, data) => apiRequest(`/coupons/${id}`, { method: 'PATCH', body: data }),
+  remove: (id) => apiRequest(`/coupons/${id}`, { method: 'DELETE' }),
+  validate: (code, orderAmount) => apiRequest('/coupons/validate', {
+    method: 'POST',
+    body: { code, orderAmount },
+  }),
 };

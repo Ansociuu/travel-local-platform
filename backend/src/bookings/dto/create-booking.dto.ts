@@ -67,6 +67,10 @@ export class CreateBookingDto {
   specialRequest?: string;
 
   @IsOptional()
+  @IsString()
+  couponCode?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BookingRoomDto)

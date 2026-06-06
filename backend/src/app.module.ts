@@ -20,6 +20,8 @@ import { ChatModule } from './chat/chat.module';
 import { OwnerModule } from './owner/owner.module';
 import { BlogModule } from './blog/blog.module';
 import { MarketingModule } from './marketing/marketing.module';
+import { CouponsModule } from './coupons/coupons.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -41,6 +43,7 @@ import { MarketingModule } from './marketing/marketing.module';
     BlogModule,
     ScheduleModule.forRoot(),
     MarketingModule,
+    CouponsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

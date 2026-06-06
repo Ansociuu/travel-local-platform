@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OwnerService } from './owner.service';
 
@@ -85,6 +85,27 @@ export class OwnerController {
   @Delete('hotels/:hotelId/rooms/:roomId')
   deleteRoom(@Request() req, @Param('hotelId') hotelId: string, @Param('roomId') roomId: string) {
     return this.ownerService.deleteRoom(req.user.id, hotelId, roomId);
+  }
+
+  @Get('hotels/:hotelId/rooms/:roomId/availability')
+  getRoomAvailability(
+    @Request() req,
+    @Param('hotelId') hotelId: string,
+    @Param('roomId') roomId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.ownerService.getRoomAvailability(req.user.id, hotelId, roomId, startDate, endDate);
+  }
+
+  @Post('hotels/:hotelId/rooms/:roomId/availability')
+  setRoomAvailability(
+    @Request() req,
+    @Param('hotelId') hotelId: string,
+    @Param('roomId') roomId: string,
+    @Body() body: { data: any[] },
+  ) {
+    return this.ownerService.setRoomAvailability(req.user.id, hotelId, roomId, body.data);
   }
 
   @Get('bookings')

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, ShoppingCart, Users, Map, Home, TrendingUp, DollarSign, UserPlus, Plus, Pencil, Trash2, ArrowLeft, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Users, Map, Home, TrendingUp, DollarSign, UserPlus, Plus, Pencil, Trash2, ArrowLeft, ClipboardCheck, MessageSquare, Star, Tag } from "lucide-react";
 import s from "./admin.module.css";
 import { adminApi } from "@/lib/api";
 
@@ -13,6 +13,8 @@ const TABS = [
   { id: "owner-applications", label: "Hồ sơ owner", icon: ClipboardCheck },
   { id: "tours", label: "Tour", icon: Map },
   { id: "hotels", label: "Homestay", icon: Home },
+  { id: "coupons", label: "Khuyến mãi", icon: Tag },
+  { id: "reviews", label: "Đánh giá", icon: MessageSquare },
 ];
 const STATUS_MAP = { PENDING: ["Chờ xử lý", s.badgePending], CONFIRMED: ["Đã xác nhận", s.badgeConfirmed], CANCELLED: ["Đã huỷ", s.badgeCancelled], COMPLETED: ["Hoàn thành", s.badgeCompleted] };
 const ROLE_MAP = { ADMIN: s.badgeAdmin, USER: s.badgeUser, OWNER: s.badgeOwner };
@@ -30,6 +32,8 @@ export default function AdminPage() {
   const [ownerApplications, setOwnerApplications] = useState([]);
   const [tours, setTours] = useState([]);
   const [hotels, setHotels] = useState([]);
+  const [coupons, setCoupons] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bkFilter, setBkFilter] = useState("ALL");
   const [modal, setModal] = useState(null); // {type:'tour'|'hotel', mode:'create'|'edit', data:{}}
@@ -55,6 +59,11 @@ export default function AdminPage() {
       else if (tab === "owner-applications") setOwnerApplications(await adminApi.getOwnerApplications());
       else if (tab === "tours") setTours(await adminApi.getAllTours());
       else if (tab === "hotels") setHotels(await adminApi.getAllHotels());
+      else if (tab === "coupons") {
+        const { couponsApi } = await import("@/lib/api");
+        setCoupons(await couponsApi.getAll());
+      }
+      else if (tab === "reviews") setReviews(await adminApi.getAllReviews());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, [tab]);
@@ -133,6 +142,11 @@ export default function AdminPage() {
         if (modal.mode === "create") { await adminApi.createHotel(form); showToast("Tạo homestay thành công"); }
         else { await adminApi.updateHotel(form.id, form); showToast("Cập nhật homestay thành công"); }
         setHotels(await adminApi.getAllHotels());
+      } else if (modal.type === "coupon") {
+        const { couponsApi } = await import("@/lib/api");
+        if (modal.mode === "create") { await couponsApi.create(form); showToast("Tạo mã giảm giá thành công"); }
+        else { await couponsApi.update(form.id, form); showToast("Cập nhật mã thành công"); }
+        setCoupons(await couponsApi.getAll());
       } else if (modal.type === "user") {
         if (modal.mode === "create") { await adminApi.createUser(form); showToast("Tạo người dùng thành công"); }
         else { await adminApi.updateUser(form.id, form); showToast("Cập nhật người dùng thành công"); }
@@ -150,6 +164,12 @@ export default function AdminPage() {
       if (type === "tour") { await adminApi.deleteTour(id); setTours(p => p.filter(t => t.id !== id)); }
       else if (type === "hotel") { await adminApi.deleteHotel(id); setHotels(p => p.filter(h => h.id !== id)); }
       else if (type === "user") { await adminApi.deleteUser(id); setUsers(p => p.filter(u => u.id !== id)); }
+      else if (type === "coupon") {
+        const { couponsApi } = await import("@/lib/api");
+        await couponsApi.remove(id);
+        setCoupons(p => p.filter(c => c.id !== id));
+      }
+      else if (type === "review") { await adminApi.deleteReview(id); setReviews(p => p.filter(r => r.id !== id)); }
       showToast("Xoá thành công");
     } catch (e) { showToast(e.message, false); }
     setConfirmDel(null);
@@ -475,6 +495,68 @@ export default function AdminPage() {
               </div>
             </div>
           </>)}
+
+          {/* COUPONS */}
+          {tab === "coupons" && (<>
+            <div className={s.pageHeader}><h1 className={s.pageTitle}>Quản lý Khuyến mãi</h1><p className={s.pageSubtitle}>Tạo và quản lý các mã giảm giá hệ thống</p></div>
+            <div className={s.tableCard}>
+              <div className={s.tableHeader}>
+                <h3 className={s.tableTitle}>Danh sách mã ({coupons.length})</h3>
+                <button className={s.addBtn} onClick={() => openCreate("coupon")}><Plus size={16} /> Thêm mã mới</button>
+              </div>
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead><tr><th>Mã giảm giá</th><th>Loại</th><th>Mức giảm</th><th>Đơn tối thiểu</th><th>Hiệu lực</th><th>Đã dùng</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                  <tbody>
+                    {coupons.length === 0 && <tr><td colSpan={8} className={s.emptyState}>Chưa có mã giảm giá nào</td></tr>}
+                    {coupons.map(c => (
+                      <tr key={c.id}>
+                        <td style={{ fontWeight: 700, color: "#6366f1" }}>{c.code}</td>
+                        <td>{c.discountType === "PERCENTAGE" ? "Phần trăm" : "Tiền mặt"}</td>
+                        <td style={{ fontWeight: 700, color: "#0d9488" }}>{c.discountType === "PERCENTAGE" ? c.value + "%" : fmt(c.value) + "₫"}</td>
+                        <td>{c.minOrder ? fmt(c.minOrder) + "₫" : "—"}</td>
+                        <td><div style={{ fontSize: 12 }}>Từ: {fmtD(c.startDate)}</div><div style={{ fontSize: 12 }}>Đến: {fmtD(c.endDate)}</div></td>
+                        <td>{c.usedCount} / {c.usageLimit || "∞"}</td>
+                        <td>{c.isActive ? <span className={s.badgeConfirmed}>Hoạt động</span> : <span className={s.badgeCancelled}>Tắt</span>}</td>
+                        <td style={{ display: "flex", gap: "8px" }}>
+                          <button className={s.editBtn} onClick={() => openEdit("coupon", c)}><Pencil size={12} /></button>
+                          <button className={s.deleteBtn} onClick={() => askDelete("coupon", c.id, c.code)}><Trash2 size={12} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>)}
+
+          {/* REVIEWS */}
+          {tab === "reviews" && (<>
+            <div className={s.pageHeader}><h1 className={s.pageTitle}>Quản lý Đánh giá</h1><p className={s.pageSubtitle}>Theo dõi và kiểm duyệt đánh giá từ người dùng</p></div>
+            <div className={s.tableCard}>
+              <div className={s.tableHeader}>
+                <h3 className={s.tableTitle}>Danh sách đánh giá ({reviews.length})</h3>
+              </div>
+              <div className={s.tableWrap}>
+                <table className={s.table}>
+                  <thead><tr><th>Người đánh giá</th><th>Dịch vụ</th><th>Sao</th><th>Nội dung</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
+                  <tbody>
+                    {reviews.length === 0 && <tr><td colSpan={6} className={s.emptyState}>Chưa có đánh giá nào</td></tr>}
+                    {reviews.map(r => (
+                      <tr key={r.id}>
+                        <td><div className={s.userCell}><img className={s.userAvatar} src={r.user?.avatar || "https://ui-avatars.com/api/?name=" + (r.user?.name || "U")} alt="" /><div><div className={s.userName}>{r.user?.name || "Khách"}</div><div className={s.userEmail}>{r.user?.email}</div></div></div></td>
+                        <td>{r.hotel ? <span className={s.badge} style={{ background: "#fdf2f8", color: "#db2777" }}>Homestay: {r.hotel.name}</span> : r.tour ? <span className={s.badge} style={{ background: "#eef2ff", color: "#4f46e5" }}>Tour: {r.tour.name}</span> : "—"}</td>
+                        <td><div style={{ display: "flex", gap: 2 }}>{Array.from({length: 5}).map((_,i) => <Star key={i} size={14} color={i < r.rating ? "#eab308" : "#cbd5e1"} fill={i < r.rating ? "#eab308" : "transparent"} />)}</div></td>
+                        <td style={{ maxWidth: 300, whiteSpace: "normal" }}>{r.content || "—"}</td>
+                        <td>{fmtD(r.createdAt)}</td>
+                        <td><button className={s.deleteBtn} onClick={() => askDelete("review", r.id, `Đánh giá của ${r.user?.name}`)}><Trash2 size={12} /></button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>)}
         </>)}
       </main>
 
@@ -515,6 +597,65 @@ export default function AdminPage() {
                     <label className={s.formLabel}>{modal.mode === "create" ? "Mật khẩu *" : "Đổi mật khẩu"}</label>
                     <input className={s.formInput} type="password" value={form.password || ""} onChange={F("password")} placeholder={modal.mode === "create" ? "Tối thiểu 6 ký tự" : "Bỏ trống nếu không đổi"} />
                     {modal.mode === "edit" && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Để trống để giữ mật khẩu hiện tại</div>}
+                  </div>
+                </div>
+              </div>
+            </>) : modal.type === "coupon" ? (<>
+              {/* ===== COUPON FORM ===== */}
+              <div style={{ background: "#f8fafc", borderRadius: 12, padding: 20, marginBottom: 16, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 14, textTransform: "uppercase", letterSpacing: 1 }}>Thông tin mã giảm giá</div>
+                <div className={s.formGroup}>
+                  <label className={s.formLabel}>Mã code <span style={{ color: "#dc2626" }}>*</span></label>
+                  <input className={s.formInput} value={form.code || ""} onChange={F("code")} placeholder="VD: SUMMER2024" style={{ textTransform: "uppercase" }} />
+                </div>
+                <div className={s.formGroup}>
+                  <label className={s.formLabel}>Mô tả</label>
+                  <input className={s.formInput} value={form.description || ""} onChange={F("description")} placeholder="VD: Giảm giá mùa hè 2024" />
+                </div>
+                <div className={s.formRow}>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Loại giảm giá</label>
+                    <select className={s.formInput} value={form.discountType || "PERCENTAGE"} onChange={F("discountType")} style={{ cursor: "pointer" }}>
+                      <option value="PERCENTAGE">Phần trăm (%)</option>
+                      <option value="FIXED_AMOUNT">Tiền mặt (VNĐ)</option>
+                    </select>
+                  </div>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Mức giảm <span style={{ color: "#dc2626" }}>*</span></label>
+                    <input className={s.formInput} type="number" value={form.value || ""} onChange={F("value")} placeholder="VD: 10 hoặc 100000" />
+                  </div>
+                </div>
+                <div className={s.formRow}>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Đơn hàng tối thiểu (VNĐ)</label>
+                    <input className={s.formInput} type="number" value={form.minOrder || ""} onChange={F("minOrder")} placeholder="Bỏ trống nếu không có" />
+                  </div>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Giảm tối đa (VNĐ)</label>
+                    <input className={s.formInput} type="number" value={form.maxDiscount || ""} onChange={F("maxDiscount")} placeholder="Chỉ áp dụng cho Phần trăm" />
+                  </div>
+                </div>
+                <div className={s.formRow}>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Ngày bắt đầu <span style={{ color: "#dc2626" }}>*</span></label>
+                    <input className={s.formInput} type="date" value={form.startDate ? new Date(form.startDate).toISOString().split("T")[0] : ""} onChange={F("startDate")} />
+                  </div>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Ngày kết thúc <span style={{ color: "#dc2626" }}>*</span></label>
+                    <input className={s.formInput} type="date" value={form.endDate ? new Date(form.endDate).toISOString().split("T")[0] : ""} onChange={F("endDate")} />
+                  </div>
+                </div>
+                <div className={s.formRow}>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Số lần sử dụng tối đa</label>
+                    <input className={s.formInput} type="number" value={form.usageLimit || ""} onChange={F("usageLimit")} placeholder="Bỏ trống = Không giới hạn" />
+                  </div>
+                  <div className={s.formGroup}>
+                    <label className={s.formLabel}>Trạng thái</label>
+                    <select className={s.formInput} value={form.isActive === false ? "false" : "true"} onChange={e => setForm(p => ({ ...p, isActive: e.target.value === "true" }))} style={{ cursor: "pointer" }}>
+                      <option value="true">Hoạt động</option>
+                      <option value="false">Tắt</option>
+                    </select>
                   </div>
                 </div>
               </div>

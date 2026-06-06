@@ -373,6 +373,56 @@ export class OwnerService {
     return { message: 'Xoá phòng thành công' };
   }
 
+  async getRoomAvailability(userId: string, hotelId: string, roomId: string, startDate: string, endDate: string) {
+    await this.assertHotelOwner(userId, hotelId);
+    
+    return this.prisma.roomAvailability.findMany({
+      where: {
+        roomId,
+        date: {
+          gte: new Date(startDate),
+          lte: new Date(endDate),
+        }
+      },
+      orderBy: { date: 'asc' }
+    });
+  }
+
+  async setRoomAvailability(userId: string, hotelId: string, roomId: string, data: any) {
+    await this.assertHotelOwner(userId, hotelId);
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+    if (!room || room.hotelId !== hotelId) throw new NotFoundException('Không tìm thấy phòng');
+
+    // data is array of { date, price, available }
+    const results: any[] = [];
+    for (const item of data) {
+      const d = new Date(item.date);
+      // Avoid time zone issues by matching exact date
+      d.setUTCHours(0,0,0,0);
+      
+      const record = await this.prisma.roomAvailability.upsert({
+        where: {
+          roomId_date: {
+            roomId,
+            date: d
+          }
+        },
+        update: {
+          price: item.price !== undefined ? Number(item.price) : undefined,
+          available: item.available !== undefined ? Number(item.available) : undefined,
+        },
+        create: {
+          roomId,
+          date: d,
+          price: item.price !== undefined ? Number(item.price) : Number(room.basePrice),
+          available: item.available !== undefined ? Number(item.available) : Number(room.totalRooms),
+        }
+      });
+      results.push(record);
+    }
+    return results;
+  }
+
   async getBookings(userId: string) {
     await this.assertOwner(userId);
     return this.prisma.booking.findMany({

@@ -132,4 +132,15 @@ export class AdminController {
   deleteHotel(@Request() req, @Param('id') id: string) {
     return this.adminService.deleteHotel(req.user.id, id);
   }
+
+  // --- Reviews ---
+  @Get('reviews')
+  getAllReviews(@Request() req) {
+    return this.adminService.getAllReviews(req.user.id);
+  }
+
+  @Delete('reviews/:id')
+  deleteReview(@Request() req, @Param('id') id: string) {
+    return this.adminService.deleteReview(req.user.id, id);
+  }
 }

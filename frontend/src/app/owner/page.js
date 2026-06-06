@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BedDouble,
   Building2,
+  Calendar,
   CheckCircle2,
   ClipboardList,
   Home,
@@ -19,13 +20,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { authApi, ownerApi } from "@/lib/api";
+import PricingCalendar from "@/components/PricingCalendar";
 import s from "./owner.module.css";
 
 const TABS = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
   { id: "hotels", label: "Homestay", icon: Home },
   { id: "tours", label: "Tour", icon: Map },
-  { id: "rooms", label: "Phòng", icon: BedDouble },
   { id: "bookings", label: "Booking", icon: ClipboardList },
 ];
 
@@ -122,6 +123,8 @@ export default function OwnerPage() {
   const [tourForm, setTourForm] = useState(emptyTourForm);
   const [roomModal, setRoomModal] = useState(null);
   const [roomForm, setRoomForm] = useState(emptyRoomForm);
+  const [calendarModal, setCalendarModal] = useState(null);
+  const [expandedHotelId, setExpandedHotelId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [ownerLoadError, setOwnerLoadError] = useState("");
@@ -223,10 +226,11 @@ export default function OwnerPage() {
     init();
   }, [loadOwnerData, prefillApplicationForm, router]);
 
-  const selectedHotelId = roomForm.hotelId || hotels[0]?.id || "";
-  const selectedHotel = hotels.find((hotel) => hotel.id === selectedHotelId);
-  const selectedRooms = selectedHotel?.rooms || [];
   const filteredBookings = bookings;
+
+  const toggleHotelExpand = (hotelId) => {
+    setExpandedHotelId((prev) => (prev === hotelId ? null : hotelId));
+  };
 
   const openHotelCreate = () => {
     setHotelForm(emptyHotelForm);
@@ -525,36 +529,37 @@ export default function OwnerPage() {
                 ))}
               </div>
               <div className={s.notice}>Homestay, phòng hoặc tour sau khi tạo/sửa sẽ ở trạng thái chờ duyệt và chỉ hiển thị công khai khi admin duyệt.</div>
-              <HotelTable hotels={hotels.slice(0, 5)} onEdit={openHotelEdit} onArchive={archiveHotel} onRoom={openRoomCreate} />
+              <HotelTable
+                hotels={hotels.slice(0, 5)}
+                expandedHotelId={expandedHotelId}
+                onToggleExpand={toggleHotelExpand}
+                onEdit={openHotelEdit}
+                onArchive={archiveHotel}
+                onRoom={openRoomCreate}
+                onRoomEdit={openRoomEdit}
+                onRoomDelete={deleteRoom}
+                onCalendar={(hotelId, room) => setCalendarModal({ hotelId, room })}
+              />
               <TourTable tours={tours.slice(0, 5)} onEdit={openTourEdit} onArchive={archiveTour} />
             </>
           )}
 
           {tab === "hotels" && (
-            <HotelTable hotels={hotels} onEdit={openHotelEdit} onArchive={archiveHotel} onRoom={openRoomCreate} />
+            <HotelTable
+              hotels={hotels}
+              expandedHotelId={expandedHotelId}
+              onToggleExpand={toggleHotelExpand}
+              onEdit={openHotelEdit}
+              onArchive={archiveHotel}
+              onRoom={openRoomCreate}
+              onRoomEdit={openRoomEdit}
+              onRoomDelete={deleteRoom}
+              onCalendar={(hotelId, room) => setCalendarModal({ hotelId, room })}
+            />
           )}
 
           {tab === "tours" && (
             <TourTable tours={tours} onEdit={openTourEdit} onArchive={archiveTour} />
-          )}
-
-          {tab === "rooms" && (
-            <div className={s.panel}>
-              <div className={s.panelHeader}>
-                <div>
-                  <h2 className={s.panelTitle}>Quản lý phòng</h2>
-                  <p className={s.subtitle}>Chọn homestay để xem và chỉnh sửa phòng.</p>
-                </div>
-                <button className={s.button} disabled={!selectedHotelId} onClick={() => openRoomCreate(selectedHotelId)}><Plus size={16} /> Thêm phòng</button>
-              </div>
-              <div style={{ maxWidth: 360, marginBottom: 18 }}>
-                <label className={s.label}>Homestay</label>
-                <select className={s.select} value={selectedHotelId} onChange={(event) => setRoomForm((prev) => ({ ...prev, hotelId: event.target.value }))}>
-                  {hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}
-                </select>
-              </div>
-              <RoomTable hotelId={selectedHotelId} rooms={selectedRooms} onEdit={openRoomEdit} onDelete={deleteRoom} />
-            </div>
           )}
 
           {tab === "bookings" && (
@@ -654,6 +659,14 @@ export default function OwnerPage() {
         </div>
       )}
 
+      {calendarModal && (
+        <PricingCalendar 
+          hotelId={calendarModal.hotelId} 
+          room={calendarModal.room} 
+          onClose={() => setCalendarModal(null)} 
+        />
+      )}
+
       {toast && <div className={s.toast}>{toast}</div>}
     </div>
   );
@@ -682,7 +695,7 @@ function StatusBadge({ value, type = "approval" }) {
   return <span className={`${s.badge} ${className}`}>{label}</span>;
 }
 
-function HotelTable({ hotels, onEdit, onArchive, onRoom }) {
+function HotelTable({ hotels, expandedHotelId, onToggleExpand, onEdit, onArchive, onRoom, onRoomEdit, onRoomDelete, onCalendar }) {
   return (
     <div className={s.tableCard}>
       <div className={s.tableHeader}>
@@ -690,24 +703,49 @@ function HotelTable({ hotels, onEdit, onArchive, onRoom }) {
       </div>
       <div className={s.tableWrap}>
         <table className={s.table}>
-          <thead><tr><th>Tên</th><th>Thành phố</th><th>Loại</th><th>Duyệt</th><th>Phòng</th><th>Booking</th><th>Hành động</th></tr></thead>
+          <thead><tr><th></th><th>Tên</th><th>Thành phố</th><th>Loại</th><th>Duyệt</th><th>Phòng</th><th>Booking</th><th>Hành động</th></tr></thead>
           <tbody>
-            {hotels.length === 0 && <tr><td colSpan={7}><div className={s.empty}>Chưa có homestay</div></td></tr>}
-            {hotels.map((hotel) => (
-              <tr key={hotel.id}>
-                <td style={{ fontWeight: 800, color: "#0f172a" }}>{hotel.name}</td>
-                <td>{hotel.city}</td>
-                <td>{hotel.type}</td>
-                <td><StatusBadge value={hotel.approvalStatus} /></td>
-                <td>{hotel.rooms?.length || 0}</td>
-                <td>{hotel._count?.bookings || 0}</td>
-                <td style={{ display: "flex", gap: 8 }}>
-                  <button className={s.smallButton} onClick={() => onEdit(hotel)}><Pencil size={13} /> Sửa</button>
-                  <button className={s.smallButton} onClick={() => onRoom(hotel.id)}><Plus size={13} /> Phòng</button>
-                  <button className={s.dangerButton} onClick={() => onArchive(hotel)}><Trash2 size={13} /></button>
-                </td>
-              </tr>
-            ))}
+            {hotels.length === 0 && <tr><td colSpan={8}><div className={s.empty}>Chưa có homestay</div></td></tr>}
+            {hotels.map((hotel) => {
+              const isExpanded = expandedHotelId === hotel.id;
+              const rooms = hotel.rooms || [];
+              return (
+                <React.Fragment key={hotel.id}>
+                  <tr style={{ background: isExpanded ? "#f0fdfa" : undefined }}>
+                    <td style={{ width: 32, textAlign: "center", cursor: "pointer", color: "#0d9488", fontWeight: 700 }} onClick={() => onToggleExpand(hotel.id)}>
+                      {isExpanded ? "▾" : "▸"}
+                    </td>
+                    <td style={{ fontWeight: 800, color: "#0f172a", cursor: "pointer" }} onClick={() => onToggleExpand(hotel.id)}>{hotel.name}</td>
+                    <td>{hotel.city}</td>
+                    <td>{hotel.type}</td>
+                    <td><StatusBadge value={hotel.approvalStatus} /></td>
+                    <td>
+                      <span style={{ fontWeight: 700, color: "#0d9488" }}>{rooms.length}</span>
+                      {" "}<span style={{ color: "#94a3b8", fontSize: 12 }}>phòng</span>
+                    </td>
+                    <td>{hotel._count?.bookings || 0}</td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button className={s.smallButton} onClick={() => onEdit(hotel)}><Pencil size={13} /> Sửa</button>
+                      <button className={s.smallButton} onClick={() => onRoom(hotel.id)}><Plus size={13} /> Thêm phòng</button>
+                      <button className={s.dangerButton} onClick={() => onArchive(hotel)}><Trash2 size={13} /></button>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={8} style={{ padding: "0 0 0 40px", background: "#f8fffd" }}>
+                        <div style={{ borderLeft: "3px solid #0d9488", margin: "8px 0 12px 0", paddingLeft: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                            <span style={{ fontWeight: 700, color: "#0d9488", fontSize: 14 }}>Phòng của {hotel.name}</span>
+                            <button className={s.smallButton} onClick={() => onRoom(hotel.id)}><Plus size={13} /> Thêm phòng</button>
+                          </div>
+                          <RoomTable hotelId={hotel.id} rooms={rooms} onEdit={onRoomEdit} onDelete={onRoomDelete} onCalendar={onCalendar} />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -747,7 +785,7 @@ function TourTable({ tours, onEdit, onArchive }) {
   );
 }
 
-function RoomTable({ hotelId, rooms, onEdit, onDelete }) {
+function RoomTable({ hotelId, rooms, onEdit, onDelete, onCalendar }) {
   return (
     <div className={s.tableWrap}>
       <table className={s.table}>
@@ -762,6 +800,7 @@ function RoomTable({ hotelId, rooms, onEdit, onDelete }) {
               <td>{room.capacity}</td>
               <td>{room.totalRooms}</td>
               <td style={{ display: "flex", gap: 8 }}>
+                <button className={s.smallButton} onClick={() => onCalendar(hotelId, room)}><Calendar size={13} /> Lịch</button>
                 <button className={s.smallButton} onClick={() => onEdit(room, hotelId)}><Pencil size={13} /> Sửa</button>
                 <button className={s.dangerButton} onClick={() => onDelete(hotelId, room)}><Trash2 size={13} /></button>
               </td>
