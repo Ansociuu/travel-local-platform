@@ -88,4 +88,34 @@ export class MailService {
       console.error('Failed to send reset password email:', error);
     }
   }
+  async sendMarketingBlast(emails: string[]) {
+    if (!emails || emails.length === 0) return;
+    
+    try {
+      const messages = emails.map(email => ({
+        to: email,
+        from: process.env.SENDGRID_FROM_EMAIL || 'nk.anbmtabc@gmail.com',
+        subject: '🎁 VietJourney tặng bạn ưu đãi đặc biệt - Trở lại ngay!',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <h2 style="color: #0d9488;">Đã lâu không gặp!</h2>
+            <p>Chào bạn,</p>
+            <p>VietJourney nhớ bạn quá! Không biết thời gian qua bạn đã có dự định du lịch ở đâu chưa?</p>
+            <p>Để tiếp thêm động lực xách balo lên và đi, chúng tôi tặng riêng bạn mã giảm giá <b>COMEBACK200</b> trị giá <b>200.000₫</b> áp dụng cho mọi Homestay và Tour trải nghiệm.</p>
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <span style="font-size: 20px; font-weight: bold; color: #0f172a;">Mã của bạn: COMEBACK200</span>
+            </div>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" style="display: inline-block; background: #14b8a6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Lên kế hoạch ngay</a>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #e2e8f0;" />
+            <p style="font-size: 12px; color: #64748b;">Nếu bạn không muốn nhận các email ưu đãi từ VietJourney, <a href="#" style="color: #64748b;">nhấn vào đây để hủy đăng ký</a>. © 2026 VietJourney Team.</p>
+          </div>
+        `,
+      }));
+
+      await sgMail.send(messages);
+      console.log(`Đã gửi email Marketing tự động tới ${emails.length} người dùng.`);
+    } catch (error) {
+      console.error('Lỗi khi gửi email Marketing:', error);
+    }
+  }
 }
