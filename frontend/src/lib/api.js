@@ -64,6 +64,14 @@ export const authApi = {
     method: 'POST',
     body: { email },
   }),
+  forgotPassword: (email) => apiRequest('/auth/forgot-password', {
+    method: 'POST',
+    body: { email },
+  }),
+  resetPassword: (email, token, newPassword) => apiRequest('/auth/reset-password', {
+    method: 'POST',
+    body: { email, token, newPassword },
+  }),
   getMe: () => apiRequest('/auth/me'),
   updateMe: (userData) => apiRequest('/users/me', {
     method: 'PATCH',

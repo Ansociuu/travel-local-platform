@@ -11,6 +11,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isVerifyMode, setIsVerifyMode] = useState(false);
+  const [otp, setOtp] = useState("");
   const router = useRouter();
 
   const handleSubmit = async (e) => {
@@ -24,15 +26,108 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data.user));
       window.dispatchEvent(new Event("auth-session-changed"));
       
-      // Redirect to home or intended page
       router.push("/");
       router.refresh();
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+      if (err.message && err.message.includes("chưa được xác thực")) {
+        // Chúng ta sẽ hiển thị nút Gửi lại mã OTP trong phần báo lỗi
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const data = await authApi.verifyOtp(email, otp);
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.dispatchEvent(new Event("auth-session-changed"));
+      
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(err.message || "Mã OTP không chính xác hoặc đã hết hạn.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      await authApi.resendOtp(email);
+      setIsVerifyMode(true);
+    } catch (err) {
+      setError(err.message || "Không thể gửi lại mã. Vui lòng thử lại sau.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isVerifyMode) {
+    return (
+      <div style={{ textAlign: "center", padding: "20px 0" }}>
+        <div style={{
+          width: "72px",
+          height: "72px",
+          borderRadius: "50%",
+          background: "#dcfce7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 24px",
+          color: "#22c55e"
+        }}>
+          <Mail size={32} />
+        </div>
+        <h2 style={{ fontSize: "24px", fontWeight: 800, color: "#0f172a", marginBottom: "12px" }}>Xác thực Email</h2>
+        <p style={{ color: "#64748b", fontSize: "15px", marginBottom: "24px" }}>
+          Chúng tôi đã gửi mã OTP gồm 6 chữ số tới <br /><b style={{ color: "#0f172a" }}>{email}</b>
+        </p>
+
+        <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {error && (
+            <div style={{ padding: "12px 16px", borderRadius: "8px", background: "#fee2e2", color: "#ef4444", fontSize: "14px", fontWeight: 600 }}>
+              {error}
+            </div>
+          )}
+
+          <input
+            type="text"
+            placeholder="Nhập mã 6 chữ số"
+            className="auth-input"
+            style={{ textAlign: "center", fontSize: "24px", letterSpacing: "8px", fontWeight: 800 }}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            required
+          />
+
+          <button
+            type="submit"
+            disabled={isLoading || otp.length < 6}
+            className="shimmer-btn"
+            style={{ width: "100%", padding: "16px", borderRadius: "12px", border: "none", fontSize: "16px", fontWeight: 700, cursor: "pointer" }}
+          >
+            {isLoading ? "Đang xác thực..." : "Xác nhận & Đăng nhập"}
+          </button>
+
+          <p style={{ fontSize: "14px", color: "#64748b" }}>
+            Không nhận được mã? <button type="button" onClick={handleResendOtp} style={{ background: "none", border: "none", color: "#0d9488", fontWeight: 700, cursor: "pointer" }}>Gửi lại mã</button>
+          </p>
+          <p style={{ fontSize: "14px", color: "#64748b", marginTop: "-10px" }}>
+            <button type="button" onClick={() => setIsVerifyMode(false)} style={{ background: "none", border: "none", color: "#64748b", textDecoration: "underline", cursor: "pointer" }}>Quay lại đăng nhập</button>
+          </p>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -49,6 +144,15 @@ export default function LoginPage() {
         {error && (
           <div style={{ padding: "12px 16px", borderRadius: "8px", background: "#fee2e2", color: "#ef4444", fontSize: "14px", fontWeight: 600, border: "1px solid #fecaca" }}>
             {error}
+            {error.includes("chưa được xác thực") && (
+              <button 
+                type="button" 
+                onClick={handleResendOtp}
+                style={{ marginTop: "8px", display: "block", color: "#b91c1c", textDecoration: "underline", background: "transparent", border: "none", cursor: "pointer", padding: 0, fontWeight: 700, fontSize: "14px" }}
+              >
+                Nhấn vào đây để nhận mã xác thực mới
+              </button>
+            )}
           </div>
         )}
 

@@ -126,6 +126,10 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Tài khoản chưa được xác thực email. Vui lòng kiểm tra email để xác thực.');
+    }
+
     const payload = { email: user.email, sub: user.id, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),

@@ -11,7 +11,7 @@ export class MailService {
     try {
       const msg = {
         to: email,
-        from: 'nk.anbmtabc@gmail.com', // Địa chỉ Gmail bạn đã xác thực Single Sender
+        from: process.env.SENDGRID_FROM_EMAIL || 'nk.anbmtabc@gmail.com', // Lấy từ biến môi trường
         subject: 'Chào mừng bạn đến với VietJourney! ✈️',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
@@ -39,7 +39,7 @@ export class MailService {
     try {
       const msg = {
         to: email,
-        from: 'nk.anbmtabc@gmail.com',
+        from: process.env.SENDGRID_FROM_EMAIL || 'nk.anbmtabc@gmail.com',
         subject: 'Mã xác thực tài khoản VietJourney của bạn 🛡️',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
@@ -66,7 +66,7 @@ export class MailService {
     try {
       const msg = {
         to: email,
-        from: 'nk.anbmtabc@gmail.com',
+        from: process.env.SENDGRID_FROM_EMAIL || 'nk.anbmtabc@gmail.com',
         subject: 'Yêu cầu khôi phục mật khẩu VietJourney 🔑',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
