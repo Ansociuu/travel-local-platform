@@ -74,6 +74,7 @@ export class BookingsService {
 
       for (const reqRoom of bookingRooms) {
         const room = validRooms.find(r => r.id === reqRoom.roomId);
+        if (!room) continue; // Should never happen — already validated above
         let roomTotal = 0;
 
         for (let i = 0; i < numNights; i++) {

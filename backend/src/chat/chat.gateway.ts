@@ -10,6 +10,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
+import { AiChatService } from './ai-chat.service';
 
 @WebSocketGateway({
   cors: {
@@ -26,7 +27,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private chatService: ChatService,
     private jwtService: JwtService,
-  ) {}
+    private aiChatService: AiChatService,
+  ) {
+    // Ensure the bot user exists in DB on startup
+    setTimeout(() => {
+      this.aiChatService.ensureBotUserExists().catch(console.error);
+    }, 5000);
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -116,6 +123,38 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         lastMessage: data.content,
         lastAt: message.createdAt,
       });
+
+      // === AI Bot Trigger ===
+      const participants = await this.chatService.getConversationParticipants(data.conversationId);
+      if (participants.includes('vietjourney-ai-bot') && userId !== 'vietjourney-ai-bot') {
+        // Run AI response asynchronously so we don't block the gateway
+        this.aiChatService.getBotResponse(data.conversationId, data.content).then(async (aiReplyContent) => {
+          const botMessage = await this.chatService.createMessage(
+            data.conversationId,
+            'vietjourney-ai-bot',
+            aiReplyContent,
+            'TEXT'
+          );
+          
+          const botSender = await this.chatService.getUserInfo('vietjourney-ai-bot');
+          const botPayload = { ...botMessage, sender: botSender };
+          
+          this.server.to(`conv:${data.conversationId}`).emit('newMessage', botPayload);
+          
+          participants.forEach((uid) => {
+            this.server.to(`user:${uid}`).emit('newMessage', botPayload);
+            const socketId = this.onlineUsers.get(uid);
+            if (socketId) this.server.to(socketId).emit('newMessage', botPayload);
+          });
+          
+          this.server.emit('conversationUpdated', {
+            conversationId: data.conversationId,
+            lastMessage: aiReplyContent,
+            lastAt: botMessage.createdAt,
+          });
+        }).catch(err => console.error('[AI Bot] Failed to generate response:', err));
+      }
+      // ======================
 
       // Async translation — does NOT block the message being sent
       this.chatService.translateMessageAsync(message.id).then((updatedMessage) => {

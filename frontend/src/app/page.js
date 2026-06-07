@@ -39,13 +39,7 @@ export default function Home() {
       <CtaSection />
       <Footer />
 
-      {/* === FLOATING ZALO SUPPORT === */}
-      <div style={{ position: "fixed", bottom: "100px", right: "24px", zIndex: 200 }}>
-        <button className="float-support" onClick={() => alert("Kết nối Zalo hỗ trợ!")} style={{ width: "52px", height: "52px", borderRadius: "16px", background: "linear-gradient(135deg, #0068FF, #0047B2)", boxShadow: "0 8px 24px rgba(0,104,255,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px" }} title="Hỗ trợ Zalo">
-          💬
-        </button>
-        <div style={{ position: "absolute", top: "-6px", right: "-6px", width: "16px", height: "16px", background: "#ef4444", borderRadius: "50%", border: "2px solid #050a1e", animation: "pulse-dot 1.5s ease-in-out infinite" }} />
-      </div>
+
 
       {/* === BACK TO TOP === */}
       {showBackTop && (

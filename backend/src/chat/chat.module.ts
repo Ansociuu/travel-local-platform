@@ -5,6 +5,8 @@ import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { TranslationService } from './translation.service';
+import { AiChatService } from './ai-chat.service';
+import { AiController } from './ai.controller';
 
 @Module({
   imports: [
@@ -14,7 +16,8 @@ import { TranslationService } from './translation.service';
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  controllers: [ChatController],
-  providers: [ChatGateway, ChatService, TranslationService],
+  controllers: [ChatController, AiController],
+  providers: [ChatGateway, ChatService, TranslationService, AiChatService],
+  exports: [AiChatService],
 })
 export class ChatModule {}

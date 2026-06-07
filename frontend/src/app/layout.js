@@ -1,6 +1,7 @@
 import "./globals.css";
 import HydrationHandler from "@/components/HydrationHandler";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
+import FloatingContactWidget from "@/components/FloatingContactWidget";
 
 export const metadata = {
   title: "VietJourney - Đặt Tour & Homestay Cao Cấp",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }) {
         <HydrationHandler>
           {children}
           <EmailVerificationNotice />
+          <FloatingContactWidget />
         </HydrationHandler>
       </body>
     </html>

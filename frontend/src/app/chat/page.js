@@ -148,6 +148,7 @@ function ChatPageContent() {
   const appliedQueryConversationId = useRef("");
   const activeConvRef = useRef(null); // Always up-to-date, avoids stale closure in socket handlers
   const queryConversationId = searchParams?.get("conversationId") || "";
+  const queryWithUser = searchParams?.get("with") || "";
   const activeConversationId = activeConv?.id || "";
 
   const lastReadMsgId = useMemo(() => {
@@ -304,6 +305,19 @@ function ChatPageContent() {
       setMobileShowChat(true);
     }
   }, [queryConversationId, activeConversationId, conversations]);
+
+  // Handle "?with=" query to start a chat automatically
+  useEffect(() => {
+    if (queryWithUser && user && conversations.length >= 0) { // wait for user init
+      // We don't want this to re-run
+      const targetUser = queryWithUser === "vietjourney-ai-bot" 
+        ? { id: "vietjourney-ai-bot", name: "VietJourney AI Support", avatar: "https://cdn-icons-png.flaticon.com/512/8943/8943377.png", role: "ADMIN" }
+        : { id: queryWithUser, name: "Người dùng", role: "USER" };
+      
+      startChat(targetUser);
+      router.replace("/chat");
+    }
+  }, [queryWithUser, user, router]);
 
   // Load messages when active conversation changes
   useEffect(() => {
