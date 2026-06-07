@@ -3,10 +3,14 @@ import { Cron } from '@nestjs/schedule';
 import { HotelApprovalStatus, TourApprovalStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BookingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   @Cron('*/5 * * * *')
   async cleanupStaleBookings() {
@@ -226,6 +230,25 @@ export class BookingsService {
       }
     });
 
+    const ownerId = booking.hotel?.ownerId || booking.tour?.ownerId;
+    if (ownerId && ownerId !== userId) {
+      this.notificationsService.create({
+        userId: ownerId,
+        type: 'BOOKING_CREATED',
+        title: 'Có booking mới',
+        content: `${guestName} vừa đặt ${booking.hotel?.name || booking.tour?.name || 'dịch vụ'} (${booking.shortId}).`,
+        link: '/owner',
+      }).catch((err) => console.error('[Notification] booking created failed:', err?.message));
+    }
+
+    this.notificationsService.create({
+      userId,
+      type: 'BOOKING_CREATED',
+      title: 'Đã tạo booking',
+      content: `Booking ${booking.shortId} đã được tạo. Vui lòng hoàn tất thanh toán để xác nhận.`,
+      link: `/success?bookingId=${booking.id}`,
+    }).catch((err) => console.error('[Notification] booking user failed:', err?.message));
+
     return booking;
   }
 
@@ -275,9 +298,19 @@ export class BookingsService {
       throw new Error('Only PENDING bookings can be cancelled');
     }
 
-    return this.prisma.booking.update({
+    const cancelled = await this.prisma.booking.update({
       where: { id },
       data: { status: 'CANCELLED' }
     });
+
+    this.notificationsService.create({
+      userId,
+      type: 'BOOKING_CANCELLED',
+      title: 'Booking đã huỷ',
+      content: `Booking ${cancelled.shortId} đã được huỷ.`,
+      link: '/dashboard',
+    }).catch((err) => console.error('[Notification] booking cancel failed:', err?.message));
+
+    return cancelled;
   }
 }

@@ -11,6 +11,8 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { AiChatService } from './ai-chat.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 @WebSocketGateway({
   cors: {
@@ -28,6 +30,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private chatService: ChatService,
     private jwtService: JwtService,
     private aiChatService: AiChatService,
+    private notificationsService: NotificationsService,
+    private realtimeService: RealtimeService,
   ) {
     // Ensure the bot user exists in DB on startup
     setTimeout(() => {
@@ -37,6 +41,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
+      this.realtimeService.setServer(this.server);
       const token =
         client.handshake.auth?.token ||
         client.handshake.headers?.authorization?.replace('Bearer ', '');
@@ -115,6 +120,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
           console.log(`[Gateway] newMessage -> uid=${uid}, room=user:${uid}, socketId=${this.onlineUsers.get(uid) || 'offline'}`);
         });
+        participantIds
+          .filter((uid) => uid !== userId)
+          .forEach((uid) => {
+            this.notificationsService.create({
+              userId: uid,
+              type: 'NEW_MESSAGE',
+              title: 'Tin nhắn mới',
+              content: `${sender?.name || 'Một người dùng'}: ${data.content.slice(0, 120)}`,
+              link: `/chat?conversationId=${data.conversationId}`,
+            }).catch((err) => console.error('[Notification] new message failed:', err?.message));
+          });
       }).catch((err) => console.error('[Gateway] getParticipants error:', err));
 
       // Sidebar update for all users

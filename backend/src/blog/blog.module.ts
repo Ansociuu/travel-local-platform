@@ -7,5 +7,6 @@ import { BlogService } from './blog.service';
   imports: [PrismaModule],
   controllers: [BlogController],
   providers: [BlogService],
+  exports: [BlogService],
 })
 export class BlogModule {}

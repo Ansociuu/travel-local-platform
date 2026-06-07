@@ -1,11 +1,14 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import PremiumGallery from "@/components/PremiumGallery";
+import ReviewEnhancements from "@/components/ReviewEnhancements";
 import { mockHomestayDetail } from "@/data/mockData";
-import { hotelsApi } from "@/lib/api";
+import { exploreApi, hotelsApi } from "@/lib/api";
 import { MapPin, Heart, Share, Star, CheckCircle2, ChevronRight, Grid, ChevronDown, ChevronUp, MessageSquare, Bed, Bath, Users, Wifi, Coffee, Tv, Car, Wind, Waves } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
@@ -40,6 +43,7 @@ export default function HomestayDetailPage() {
     const fetchDetail = async () => {
       try {
         const data = await hotelsApi.getById(id);
+        exploreApi.trackView({ hotelId: id }).catch(() => {});
         setHomeBasic({
           id: data.id,
           name: data.name,
@@ -79,6 +83,7 @@ export default function HomestayDetailPage() {
             comment: r.comment,
             avatar: r.user?.avatar || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&q=80"
           })) || [],
+          enhancedReviews: data.reviews || [],
           rooms: data.rooms || []
         });
         
@@ -216,7 +221,8 @@ export default function HomestayDetailPage() {
         </div>
 
         {/* PHOTO GALLERY */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", height: "500px", borderRadius: "24px", overflow: "hidden", marginBottom: "48px", position: "relative" }}>
+        <PremiumGallery images={homeDetail.gallery} title={homeBasic.name} />
+        <div style={{ display: "none", gridTemplateColumns: "1fr 1fr", gap: "8px", height: "500px", borderRadius: "24px", overflow: "hidden", marginBottom: "48px", position: "relative" }}>
           <div style={{ width: "100%", height: "100%" }}>
             <img src={mainImg} style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.target.style.opacity = 0.9} onMouseLeave={e => e.target.style.opacity = 1} />
           </div>
@@ -336,6 +342,7 @@ export default function HomestayDetailPage() {
             </div>
 
             {/* REVIEWS */}
+            <ReviewEnhancements reviews={homeDetail.enhancedReviews || []} title="Đánh giá từ khách hàng" />
             <div id="reviews" style={{ paddingBottom: "32px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
                 <Star size={24} fill="#0f172a" color="#0f172a" />

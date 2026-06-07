@@ -2,7 +2,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Plane, Menu, X, MessageCircle, Home } from "lucide-react";
+import { Plane, Menu, X, MessageCircle, Home, Moon, Sun } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
+import UnifiedSearch from "@/components/UnifiedSearch";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function Navbar({ theme = "default" }) {
   const pathname = usePathname();
@@ -11,6 +14,7 @@ export default function Navbar({ theme = "default" }) {
 
   const [user, setUser] = useState(null);
   const router = useRouter();
+  const { theme: colorTheme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const onScroll = () => {
@@ -49,7 +53,7 @@ export default function Navbar({ theme = "default" }) {
   };
 
   const isLightTheme = theme === "light";
-  const textColor = scrolled ? "#0f172a" : (isLightTheme ? "#0f172a" : "#fff");
+  const textColor = colorTheme === "dark" ? "var(--text-primary)" : (scrolled ? "#0f172a" : (isLightTheme ? "#0f172a" : "#fff"));
 
   return (
     <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, padding: "0 40px", height: "72px", display: "flex", alignItems: "center", justifyContent: "space-between", ...glassNav }}>
@@ -67,11 +71,17 @@ export default function Navbar({ theme = "default" }) {
         <Link href="/" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname === "/" ? "active" : ""}`} style={{textDecoration: "none"}}>Khám phá</Link>
         <Link href="/tours" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname.startsWith("/tours") ? "active" : ""}`} style={{textDecoration: "none"}}>Tour</Link>
         <Link href="/homestays" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname.startsWith("/homestays") ? "active" : ""}`} style={{textDecoration: "none"}}>Homestay</Link>
+        <Link href="/explore" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname.startsWith("/explore") ? "active" : ""}`} style={{textDecoration: "none"}}>Bản đồ</Link>
+        <Link href="/promotions" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname.startsWith("/promotions") ? "active" : ""}`} style={{textDecoration: "none"}}>Ưu đãi</Link>
         <Link href="/blog" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname.startsWith("/blog") ? "active" : ""}`} style={{textDecoration: "none"}}>Blog</Link>
         <Link href="/contact" className={`${(scrolled || isLightTheme) ? "nav-link" : "nav-link-light"} ${pathname.startsWith("/contact") ? "active" : ""}`} style={{textDecoration: "none"}}>Liên hệ</Link>
       </div>
 
       <div className="nav-auth" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <UnifiedSearch />
+        <button onClick={toggleTheme} title={colorTheme === "dark" ? "Chế độ sáng" : "Chế độ tối"} style={{ width: "36px", height: "36px", borderRadius: "10px", background: scrolled ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.12)", border: "none", color: textColor, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          {colorTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
         {user ? (
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             {user.role === "ADMIN" && (
@@ -87,8 +97,9 @@ export default function Navbar({ theme = "default" }) {
             <Link href="/chat" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "36px", height: "36px", borderRadius: "10px", background: scrolled ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.12)", transition: "all 0.2s", textDecoration: "none" }} title="Tin nhắn">
               <MessageCircle size={18} color={textColor} />
             </Link>
+            <NotificationBell iconColor={textColor} />
             <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
-              <img src={user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80"} style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${textColor}` }} />
+              <img src={user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&q=80"} alt={user.name || "User"} style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${textColor}` }} />
               <span style={{ color: textColor, fontSize: "14px", fontWeight: 600 }}>{user.name}</span>
             </Link>
             <button 
@@ -117,10 +128,29 @@ export default function Navbar({ theme = "default" }) {
           <Link href="/" className="nav-link" style={{ textAlign: "left", padding: "10px 0", fontSize: "16px", borderBottom: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", textDecoration: "none" }} onClick={() => setMobileMenu(false)}>Khám phá</Link>
           <Link href="/tours" className="nav-link" style={{ textAlign: "left", padding: "10px 0", fontSize: "16px", borderBottom: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", textDecoration: "none" }} onClick={() => setMobileMenu(false)}>Tour</Link>
           <Link href="/homestays" className="nav-link" style={{ textAlign: "left", padding: "10px 0", fontSize: "16px", borderBottom: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", textDecoration: "none" }} onClick={() => setMobileMenu(false)}>Homestay</Link>
-          <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-            <Link href="/login" style={{ textDecoration: "none", textAlign: "center", flex: 1, background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>Đăng nhập</Link>
-            <Link href="/register" className="shimmer-btn" style={{ textDecoration: "none", textAlign: "center", flex: 1, padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 600, border: "none" }}>Đăng ký</Link>
+          <Link href="/explore" className="nav-link" style={{ textAlign: "left", padding: "10px 0", fontSize: "16px", borderBottom: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", textDecoration: "none" }} onClick={() => setMobileMenu(false)}>Bản đồ</Link>
+          <Link href="/promotions" className="nav-link" style={{ textAlign: "left", padding: "10px 0", fontSize: "16px", borderBottom: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", textDecoration: "none" }} onClick={() => setMobileMenu(false)}>Ưu đãi</Link>
+          <div style={{ padding: "12px 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
+            <UnifiedSearch compact />
           </div>
+          <button onClick={toggleTheme} style={{ textAlign: "left", padding: "10px 0", fontSize: "16px", border: "none", borderBottom: "1px solid rgba(0,0,0,0.05)", color: "#0f172a", background: "transparent", fontWeight: 700, cursor: "pointer" }}>
+            {colorTheme === "dark" ? "Chế độ sáng" : "Chế độ tối"}
+          </button>
+          {user ? (
+            <div style={{ display: "grid", gap: "10px", marginTop: "16px" }}>
+              <Link href="/dashboard" onClick={() => setMobileMenu(false)} style={{ textDecoration: "none", textAlign: "center", background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>Dashboard</Link>
+              <Link href="/chat" onClick={() => setMobileMenu(false)} style={{ textDecoration: "none", textAlign: "center", background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>Tin nhắn</Link>
+              {user.role === "OWNER" && <Link href="/owner" onClick={() => setMobileMenu(false)} style={{ textDecoration: "none", textAlign: "center", background: "#0d9488", color: "#fff", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 800, fontFamily: "'Inter', sans-serif" }}>Quản lý homestay</Link>}
+              {user.role === "ADMIN" && <Link href="/admin" onClick={() => setMobileMenu(false)} style={{ textDecoration: "none", textAlign: "center", background: "#0d9488", color: "#fff", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 800, fontFamily: "'Inter', sans-serif" }}>Quản trị</Link>}
+              <div style={{ display: "flex", justifyContent: "center" }}><NotificationBell iconColor="#0f172a" compact /></div>
+              <button onClick={() => { setMobileMenu(false); handleLogout(); }} style={{ textAlign: "center", background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>Thoát</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
+              <Link href="/login" style={{ textDecoration: "none", textAlign: "center", flex: 1, background: "transparent", border: "1px solid rgba(0,0,0,0.1)", color: "#0f172a", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>Đăng nhập</Link>
+              <Link href="/register" className="shimmer-btn" style={{ textDecoration: "none", textAlign: "center", flex: 1, padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: 600, border: "none" }}>Đăng ký</Link>
+            </div>
+          )}
         </div>
       )}
     </nav>

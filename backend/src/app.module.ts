@@ -21,10 +21,15 @@ import { OwnerModule } from './owner/owner.module';
 import { BlogModule } from './blog/blog.module';
 import { MarketingModule } from './marketing/marketing.module';
 import { CouponsModule } from './coupons/coupons.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { ExploreModule } from './explore/explore.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    RealtimeModule,
     PrismaModule, 
     UsersModule, 
     AuthModule, 
@@ -44,6 +49,9 @@ import { CouponsModule } from './coupons/coupons.module';
     ScheduleModule.forRoot(),
     MarketingModule,
     CouponsModule,
+    NotificationsModule,
+    ExploreModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

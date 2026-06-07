@@ -22,6 +22,11 @@ export class OwnerController {
     return this.ownerService.getStats(req.user.id);
   }
 
+  @Get('analytics')
+  getAnalytics(@Request() req, @Query('range') range?: string) {
+    return this.ownerService.getAnalytics(req.user.id, range);
+  }
+
   @Get('hotels')
   getHotels(@Request() req) {
     return this.ownerService.getHotels(req.user.id);
@@ -113,8 +118,18 @@ export class OwnerController {
     return this.ownerService.getBookings(req.user.id);
   }
 
+  @Get('reviews')
+  getReviews(@Request() req) {
+    return this.ownerService.getReviews(req.user.id);
+  }
+
   @Patch('bookings/:bookingId/status')
   updateBookingStatus(@Request() req, @Param('bookingId') bookingId: string, @Body() body: { status: string }) {
     return this.ownerService.updateBookingStatus(req.user.id, bookingId, body.status);
+  }
+
+  @Post('reviews/:reviewId/reply')
+  replyReview(@Request() req, @Param('reviewId') reviewId: string, @Body() body: { content: string }) {
+    return this.ownerService.replyReview(req.user.id, reviewId, body.content);
   }
 }

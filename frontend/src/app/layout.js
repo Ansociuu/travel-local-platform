@@ -2,6 +2,7 @@ import "./globals.css";
 import HydrationHandler from "@/components/HydrationHandler";
 import EmailVerificationNotice from "@/components/EmailVerificationNotice";
 import FloatingContactWidget from "@/components/FloatingContactWidget";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata = {
   title: "VietJourney - Đặt Tour & Homestay Cao Cấp",
@@ -15,11 +16,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="vi" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <HydrationHandler>
-          {children}
-          <EmailVerificationNotice />
-          <FloatingContactWidget />
-        </HydrationHandler>
+        <ThemeProvider>
+          <HydrationHandler>
+            {children}
+            <EmailVerificationNotice />
+            <FloatingContactWidget />
+          </HydrationHandler>
+        </ThemeProvider>
       </body>
     </html>
   );

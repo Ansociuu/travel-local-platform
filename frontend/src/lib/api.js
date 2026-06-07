@@ -146,9 +146,15 @@ export const ownerApi = {
   setRoomAvailability: (hotelId, roomId, data) => apiRequest(`/owner/hotels/${hotelId}/rooms/${roomId}/availability`, { method: 'POST', body: { data } }),
 
   getBookings: () => apiRequest('/owner/bookings'),
+  getReviews: () => apiRequest('/owner/reviews'),
   updateBookingStatus: (id, status) => apiRequest(`/owner/bookings/${id}/status`, {
     method: 'PATCH',
     body: { status },
+  }),
+  getAnalytics: (range = '30d') => apiRequest(`/owner/analytics?range=${range}`),
+  replyReview: (id, content) => apiRequest(`/owner/reviews/${id}/reply`, {
+    method: 'POST',
+    body: { content },
   }),
 };
 
@@ -188,6 +194,9 @@ export const reviewsApi = {
   getMyReviews: () => apiRequest('/reviews/me'),
   getByHotel: (id) => apiRequest(`/reviews/hotel/${id}`),
   getByTour: (id) => apiRequest(`/reviews/tour/${id}`),
+  helpful: (id) => apiRequest(`/reviews/${id}/helpful`, {
+    method: 'POST',
+  }),
 };
 
 export const wishlistApi = {
@@ -206,6 +215,35 @@ export const paymentsApi = {
   verifyVNPayReturn: (queryString) => apiRequest(`/payments/vnpay/vnpay_return?${queryString}`),
   getBookingStatus: (bookingId) => apiRequest(`/payments/status/${bookingId}`),
   getSepayPaymentInfo: (bookingId) => apiRequest(`/payments/sepay/info/${bookingId}`),
+};
+
+export const notificationsApi = {
+  getAll: (take = 20) => apiRequest(`/notifications?take=${take}`),
+  getUnreadCount: () => apiRequest('/notifications/unread-count'),
+  markRead: (id) => apiRequest(`/notifications/${id}/read`, {
+    method: 'PATCH',
+  }),
+  markAllRead: () => apiRequest('/notifications/read-all', {
+    method: 'PATCH',
+  }),
+};
+
+export const exploreApi = {
+  getAll: (params = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') query.set(key, value);
+    });
+    return apiRequest(`/explore${query.toString() ? `?${query}` : ''}`);
+  },
+  trackView: (data) => apiRequest('/explore/view', {
+    method: 'POST',
+    body: data,
+  }),
+};
+
+export const searchApi = {
+  search: (query) => apiRequest(`/search?q=${encodeURIComponent(query || '')}`),
 };
 
 export const uploadApi = {
@@ -285,6 +323,7 @@ export const chatApi = {
 
 export const couponsApi = {
   getAll: () => apiRequest('/coupons'),
+  getPublic: () => apiRequest('/coupons/public'),
   create: (data) => apiRequest('/coupons', { method: 'POST', body: data }),
   update: (id, data) => apiRequest(`/coupons/${id}`, { method: 'PATCH', body: data }),
   remove: (id) => apiRequest(`/coupons/${id}`, { method: 'DELETE' }),

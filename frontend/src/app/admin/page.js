@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LayoutDashboard, ShoppingCart, Users, Map, Home, TrendingUp, DollarSign, UserPlus, Plus, Pencil, Trash2, ArrowLeft, ClipboardCheck, MessageSquare, Star, Tag } from "lucide-react";
 import s from "./admin.module.css";
 import { adminApi } from "@/lib/api";
+import NotificationBell from "@/components/NotificationBell";
 
 const TABS = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
@@ -212,6 +213,9 @@ export default function AdminPage() {
       </aside>
 
       <main className={s.mainContent}>
+        <div className={s.adminTopActions}>
+          <NotificationBell iconColor="#0f172a" />
+        </div>
         {loading ? (
           <div className={s.loading}><div className={s.spinner} /> Đang tải dữ liệu...</div>
         ) : (<>

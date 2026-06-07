@@ -1,10 +1,46 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as crypto from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
+
+  private async notifyPaymentConfirmed(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        hotel: { select: { id: true, name: true, ownerId: true } },
+        tour: { select: { id: true, name: true, ownerId: true } },
+      },
+    });
+    if (!booking) return;
+
+    const listingName = booking.hotel?.name || booking.tour?.name || 'dịch vụ';
+    const link = `/success?bookingId=${booking.id}`;
+    const ownerId = booking.hotel?.ownerId || booking.tour?.ownerId;
+
+    await this.notificationsService.createMany([
+      {
+        userId: booking.userId,
+        type: 'PAYMENT_RECEIVED',
+        title: 'Thanh toán thành công',
+        content: `Booking ${booking.shortId} cho ${listingName} đã được xác nhận.`,
+        link,
+      },
+      ...(ownerId ? [{
+        userId: ownerId,
+        type: 'BOOKING_CONFIRMED',
+        title: 'Booking đã được thanh toán',
+        content: `Booking ${booking.shortId} cho ${listingName} đã được thanh toán.`,
+        link: '/owner',
+      }] : []),
+    ]);
+  }
 
   async createVNPayUrl(bookingId: string, ipAddr: string, origin: string) {
     const booking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
@@ -86,6 +122,7 @@ export class PaymentsService {
             where: { id: payment.bookingId },
             data: { status: 'CONFIRMED', paymentStatus: 'PAID' }
           });
+          this.notifyPaymentConfirmed(payment.bookingId).catch((err) => console.error('[Notification] VNPay success failed:', err?.message));
           return { code: '00', message: 'Success', bookingId: payment.bookingId };
         } else {
           // Failed
@@ -267,6 +304,8 @@ export class PaymentsService {
         }
       });
     });
+
+    this.notifyPaymentConfirmed(booking.id).catch((err) => console.error('[Notification] SePay success failed:', err?.message));
 
     return { success: true, message: 'Payment confirmed successfully' };
   }

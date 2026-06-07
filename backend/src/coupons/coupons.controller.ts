@@ -6,6 +6,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class CouponsController {
   constructor(private readonly couponsService: CouponsService) {}
 
+  @Get('public')
+  findPublic() {
+    return this.couponsService.findPublicActive();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Request() req, @Body() createCouponDto: any) {

@@ -78,6 +78,9 @@ model User {
   sessions      Session[]
   ownerApplication OwnerApplication?
   posts         UserPost[]
+  notifications Notification[]
+  reviewHelpfulVotes ReviewHelpfulVote[]
+  listingViews  ListingView[]
 }
 
 model OwnerApplication {
@@ -156,6 +159,7 @@ model Hotel {
   bookings    Booking[]
   reviews     Review[]
   wishlists   Wishlist[]
+  listingViews ListingView[]
 
   @@index([approvalStatus])
 }
@@ -298,7 +302,23 @@ model Review {
   rating    Int      @default(5)
   comment   String?  @db.Text
   images    Json?
+  replyContent String? @db.Text
+  repliedAt DateTime?
+  helpfulCount Int @default(0)
   createdAt DateTime @default(now())
+  helpfulVotes ReviewHelpfulVote[]
+}
+
+model ReviewHelpfulVote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, userId])
+  @@index([userId])
 }
 
 model Wishlist {
@@ -327,6 +347,36 @@ model Coupon {
   usageLimit    Int?
   usedCount     Int      @default(0)
   isActive      Boolean  @default(true)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  content   String   @db.Text
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read, createdAt])
+  @@index([type])
+}
+
+model ListingView {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  hotelId   String?
+  hotel     Hotel?   @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  tourId    String?
+  tour      Tour?    @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([hotelId, createdAt])
+  @@index([tourId, createdAt])
 }
 
 model VerificationToken {
@@ -372,6 +422,7 @@ model Tour {
   bookingTours    BookingTour[]
   reviews         Review[]
   wishlists       Wishlist[]
+  listingViews    ListingView[]
 
   @@index([approvalStatus])
   @@index([type])

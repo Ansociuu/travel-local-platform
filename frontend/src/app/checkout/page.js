@@ -45,6 +45,8 @@ export default function CheckoutPage() {
           return;
         }
         setOrder(JSON.parse(pending));
+        const savedCoupon = localStorage.getItem("vj-saved-coupon");
+        if (savedCoupon) setCouponCode(savedCoupon);
       } catch (err) {
         console.error("Not logged in or error:", err);
         router.push('/login?redirect=/checkout');
@@ -68,8 +70,6 @@ export default function CheckoutPage() {
         guestPhone: formData.guestPhone,
         specialRequest: formData.specialRequest,
         couponCode: couponData?.code || null,
-        discountAmount: couponData?.discountAmount || 0,
-        finalAmount: couponData ? couponData.finalAmount : order.totalAmount,
       };
 
       if (order.type === 'tour') {
@@ -255,6 +255,11 @@ export default function CheckoutPage() {
               </div>
 
               {/* COUPON SECTION */}
+              {couponCode && !couponData && (
+                <div style={{ fontSize: "12px", color: "#0d9488", fontWeight: 800, marginBottom: "8px" }}>
+                  Đã tìm thấy mã đã lưu. Bấm áp dụng để dùng cho đơn này.
+                </div>
+              )}
               <div style={{ marginBottom: "24px", paddingTop: "16px", borderTop: "1px dashed rgba(0,0,0,0.1)" }}>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "#475569", marginBottom: "8px" }}>Mã giảm giá</label>
                 <div style={{ display: "flex", gap: "8px" }}>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BarChart3,
   BedDouble,
   Building2,
   Calendar,
@@ -15,6 +16,7 @@ import {
   Map,
   Pencil,
   Plus,
+  Star,
   Trash2,
   Wallet,
   XCircle,
@@ -25,9 +27,11 @@ import s from "./owner.module.css";
 
 const TABS = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "hotels", label: "Homestay", icon: Home },
   { id: "tours", label: "Tour", icon: Map },
   { id: "bookings", label: "Booking", icon: ClipboardList },
+  { id: "reviews", label: "Đánh giá", icon: Star },
 ];
 
 const APPROVAL_LABELS = {
@@ -105,9 +109,12 @@ export default function OwnerPage() {
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsRange, setAnalyticsRange] = useState("30d");
   const [hotels, setHotels] = useState([]);
   const [tours, setTours] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [application, setApplication] = useState(null);
   const [applicationForm, setApplicationForm] = useState({
     businessName: "",
@@ -129,6 +136,7 @@ export default function OwnerPage() {
   const [toast, setToast] = useState("");
   const [ownerLoadError, setOwnerLoadError] = useState("");
   const [applicationLoadError, setApplicationLoadError] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState({});
 
   const notify = (message) => {
     setToast(message);
@@ -136,17 +144,21 @@ export default function OwnerPage() {
   };
 
   const loadOwnerData = useCallback(async () => {
-    const [statsData, hotelsData, toursData, bookingsData] = await Promise.all([
+    const [statsData, hotelsData, toursData, bookingsData, reviewsData, analyticsData] = await Promise.all([
       ownerApi.getStats(),
       ownerApi.getHotels(),
       ownerApi.getTours(),
       ownerApi.getBookings(),
+      ownerApi.getReviews(),
+      ownerApi.getAnalytics(analyticsRange),
     ]);
     setStats(statsData);
     setHotels(hotelsData);
     setTours(toursData);
     setBookings(bookingsData);
-  }, []);
+    setReviews(reviewsData);
+    setAnalytics(analyticsData);
+  }, [analyticsRange]);
 
   const prefillApplicationForm = useCallback((profile, app = null) => {
     setApplicationForm((prev) => ({
@@ -416,6 +428,27 @@ export default function OwnerPage() {
     }
   };
 
+  const submitReviewReply = async (reviewId) => {
+    const content = replyDrafts[reviewId] || "";
+    if (!content.trim()) {
+      notify("Nhập phản hồi trước khi gửi");
+      return;
+    }
+    setSaving(true);
+    try {
+      const updated = await ownerApi.replyReview(reviewId, content);
+      setReviews((prev) => prev.map((review) => review.id === reviewId ? { ...review, ...updated } : review));
+      setReplyDrafts((prev) => ({ ...prev, [reviewId]: "" }));
+      const analyticsData = await ownerApi.getAnalytics(analyticsRange);
+      setAnalytics(analyticsData);
+      notify("Đã gửi phản hồi đánh giá");
+    } catch (error) {
+      notify(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const submitApplication = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -544,6 +577,10 @@ export default function OwnerPage() {
             </>
           )}
 
+          {tab === "analytics" && (
+            <OwnerAnalytics data={analytics} range={analyticsRange} onRangeChange={setAnalyticsRange} />
+          )}
+
           {tab === "hotels" && (
             <HotelTable
               hotels={hotels}
@@ -564,6 +601,16 @@ export default function OwnerPage() {
 
           {tab === "bookings" && (
             <BookingTable bookings={filteredBookings} onUpdate={updateBooking} />
+          )}
+
+          {tab === "reviews" && (
+            <ReviewTable
+              reviews={reviews}
+              drafts={replyDrafts}
+              saving={saving}
+              onDraftChange={(reviewId, value) => setReplyDrafts((prev) => ({ ...prev, [reviewId]: value }))}
+              onReply={submitReviewReply}
+            />
           )}
         </main>
       </div>
@@ -850,6 +897,142 @@ function BookingTable({ bookings, onUpdate }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function ReviewTable({ reviews, drafts, saving, onDraftChange, onReply }) {
+  return (
+    <div className={s.panel}>
+      <div className={s.panelHeader}>
+        <h2 className={s.panelTitle}>Đánh giá khách hàng ({reviews.length})</h2>
+      </div>
+      {reviews.length === 0 ? (
+        <div className={s.empty}>Chưa có đánh giá cho dịch vụ của bạn</div>
+      ) : (
+        <div className={s.reviewList}>
+          {reviews.map((review) => {
+            const listingName = review.hotel?.name || review.tour?.name || "Dịch vụ";
+            const listingMeta = review.hotel?.city || review.tour?.location || "";
+            const draft = drafts[review.id] ?? review.replyContent ?? "";
+            return (
+              <article key={review.id} className={s.reviewCard}>
+                <div className={s.reviewTop}>
+                  <img src={review.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user?.name || "Guest")}&background=0d9488&color=fff`} alt="" className={s.reviewAvatar} />
+                  <div style={{ minWidth: 0 }}>
+                    <div className={s.reviewAuthor}>{review.user?.name || "Khách hàng"}</div>
+                    <div className={s.reviewMeta}>{listingName}{listingMeta ? ` - ${listingMeta}` : ""} • {fmtDate(review.createdAt)}</div>
+                  </div>
+                  <div className={s.reviewStars}>{Array.from({ length: 5 }).map((_, index) => <Star key={index} size={14} fill={index < review.rating ? "#f59e0b" : "none"} color="#f59e0b" />)}</div>
+                </div>
+                {review.comment && <p className={s.reviewComment}>{review.comment}</p>}
+                {Array.isArray(review.images) && review.images.length > 0 && (
+                  <div className={s.reviewImages}>
+                    {review.images.slice(0, 4).map((image) => <img key={image} src={image} alt="" />)}
+                  </div>
+                )}
+                <div className={s.replyBox}>
+                  <label className={s.label}>Phản hồi owner</label>
+                  <textarea className={s.textarea} value={draft} onChange={(event) => onDraftChange(review.id, event.target.value)} placeholder="Cảm ơn khách hoặc giải thích thêm về trải nghiệm..." />
+                  {review.repliedAt && <div className={s.reviewMeta}>Đã phản hồi {fmtDate(review.repliedAt)}</div>}
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+                    <button className={s.button} onClick={() => onReply(review.id)} disabled={saving}>{review.replyContent ? "Cập nhật phản hồi" : "Gửi phản hồi"}</button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OwnerAnalytics({ data, range, onRangeChange }) {
+  if (!data) {
+    return <div className={s.panel}><div className={s.empty}>Đang tải analytics...</div></div>;
+  }
+
+  const maxRevenue = Math.max(...(data.revenueSeries || []).map((item) => item.revenue), 1);
+  const points = (data.revenueSeries || []).map((item, index, arr) => {
+    const x = arr.length === 1 ? 0 : (index / (arr.length - 1)) * 100;
+    const y = 100 - (item.revenue / maxRevenue) * 88 - 6;
+    return `${x},${y}`;
+  }).join(" ");
+
+  const exportCsv = () => {
+    const rows = [["date", "revenue", "bookings"], ...(data.revenueSeries || []).map((item) => [item.date, item.revenue, item.bookings])];
+    const blob = new Blob([rows.map((row) => row.join(",")).join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `owner-analytics-${range}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 24 }}>
+      <div className={s.panel}>
+        <div className={s.panelHeader}>
+          <h2 className={s.panelTitle}>Phân tích doanh thu</h2>
+          <div style={{ display: "flex", gap: 10 }}>
+            <select className={s.select} value={range} onChange={(event) => onRangeChange(event.target.value)} style={{ width: 130 }}>
+              <option value="7d">7 ngày</option>
+              <option value="30d">30 ngày</option>
+              <option value="90d">90 ngày</option>
+            </select>
+            <button className={s.secondaryButton} onClick={exportCsv}>Export CSV</button>
+          </div>
+        </div>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: "100%", height: 220, overflow: "visible" }}>
+          <polyline points={points} fill="none" stroke="#0d9488" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          {(data.revenueSeries || []).map((item, index, arr) => {
+            const x = arr.length === 1 ? 0 : (index / (arr.length - 1)) * 100;
+            const y = 100 - (item.revenue / maxRevenue) * 88 - 6;
+            return <circle key={item.date} cx={x} cy={y} r="1.8" fill="#14b8a6" />;
+          })}
+        </svg>
+      </div>
+
+      <div className={s.grid}>
+        <div className={s.statCard}><p className={s.statValue}>{fmt(data.funnel?.views)}</p><div className={s.statLabel}>Lượt xem</div></div>
+        <div className={s.statCard}><p className={s.statValue}>{fmt(data.funnel?.bookings)}</p><div className={s.statLabel}>Booking</div></div>
+        <div className={s.statCard}><p className={s.statValue}>{data.funnel?.conversionRate || 0}%</p><div className={s.statLabel}>Conversion</div></div>
+        <div className={s.statCard}><p className={s.statValue}>{data.reviewSummary?.averageRating || 0}</p><div className={s.statLabel}>Rating TB</div></div>
+      </div>
+
+      <div className={s.panel}>
+        <h2 className={s.panelTitle}>Hiệu suất listing</h2>
+        <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
+          {(data.topPerforming || []).map((item, index) => (
+            <div key={`${item.type}-${item.id}`} style={{ display: "grid", gridTemplateColumns: "36px 1fr auto", alignItems: "center", gap: 12, padding: 12, border: "1px solid #e2e8f0", borderRadius: 12 }}>
+              <strong style={{ color: "#0d9488" }}>#{index + 1}</strong>
+              <div>
+                <div style={{ color: "#0f172a", fontWeight: 900 }}>{item.name}</div>
+                <div style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>{item.type} • {item.bookings} booking • {item.views} view</div>
+              </div>
+              <strong>{fmt(item.revenue)}₫</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={s.panel}>
+        <h2 className={s.panelTitle}>Occupancy theo phòng</h2>
+        <div style={{ display: "grid", gap: 12, marginTop: 18 }}>
+          {(data.occupancy || []).slice(0, 8).map((room) => (
+            <div key={room.roomId}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#334155", fontWeight: 800 }}>
+                <span>{room.hotelName} - {room.roomName}</span><span>{room.occupancyRate}%</span>
+              </div>
+              <div style={{ height: 10, borderRadius: 999, background: "#e2e8f0", overflow: "hidden" }}>
+                <div style={{ width: `${Math.min(room.occupancyRate, 100)}%`, height: "100%", background: "#0d9488" }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

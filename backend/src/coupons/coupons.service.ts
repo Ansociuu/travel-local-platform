@@ -35,6 +35,19 @@ export class CouponsService {
     });
   }
 
+  async findPublicActive() {
+    const now = new Date();
+    const coupons = await this.prisma.coupon.findMany({
+      where: {
+        isActive: true,
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+      orderBy: { endDate: 'asc' },
+    });
+    return coupons.filter((coupon) => coupon.usageLimit === null || coupon.usedCount < coupon.usageLimit);
+  }
+
   async update(userId: string, id: string, data: any) {
     await this.assertAdmin(userId);
     const updateData: any = {};

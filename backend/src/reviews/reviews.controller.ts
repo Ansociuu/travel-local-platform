@@ -28,4 +28,10 @@ export class ReviewsController {
   findByTour(@Param('id') id: string) {
     return this.reviewsService.findByTour(id);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/helpful')
+  toggleHelpful(@Request() req, @Param('id') id: string) {
+    return this.reviewsService.toggleHelpful(req.user.id, id);
+  }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -5,7 +6,9 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import StarRating from "@/components/StarRating";
-import { toursApi } from "@/lib/api";
+import PremiumGallery from "@/components/PremiumGallery";
+import ReviewEnhancements from "@/components/ReviewEnhancements";
+import { exploreApi, toursApi } from "@/lib/api";
 import { MapPin, Heart, Share, Star, CheckCircle2, XCircle, Calendar, Users, ChevronDown, ChevronRight, Grid, Map as MapIcon, ChevronUp, MessageSquare } from "lucide-react";
 
 export default function TourDetailPage() {
@@ -27,6 +30,7 @@ export default function TourDetailPage() {
       try {
         const data = await toursApi.getById(id);
         setTour(data);
+        exploreApi.trackView({ tourId: id }).catch(() => {});
         if (data.availability && data.availability.length > 0) {
           setSelectedAvailId(data.availability[0].id);
         } else {
@@ -155,7 +159,8 @@ export default function TourDetailPage() {
         </div>
 
         {/* PHOTO GALLERY */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", height: "500px", borderRadius: "24px", overflow: "hidden", marginBottom: "48px", position: "relative" }}>
+        <PremiumGallery images={tour.images} title={tour.name} />
+        <div style={{ display: "none", gridTemplateColumns: "1fr 1fr", gap: "8px", height: "500px", borderRadius: "24px", overflow: "hidden", marginBottom: "48px", position: "relative" }}>
           <div style={{ width: "100%", height: "100%" }}>
             <img src={mainImg} style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer", transition: "opacity 0.2s" }} onMouseEnter={e => e.target.style.opacity = 0.9} onMouseLeave={e => e.target.style.opacity = 1} />
           </div>
@@ -247,6 +252,7 @@ export default function TourDetailPage() {
             </div>
 
             {/* REVIEWS */}
+            <ReviewEnhancements reviews={tour.reviews || []} title="Đánh giá từ khách hàng" />
             <div style={{ paddingBottom: "32px", borderBottom: "1px solid rgba(0,0,0,0.05)", marginBottom: "32px" }}>
               <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "24px", fontWeight: 800, color: "#0f172a", marginBottom: "32px" }}>Đánh giá từ khách hàng</h2>
               

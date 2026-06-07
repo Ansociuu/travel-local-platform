@@ -152,40 +152,67 @@ Hệ thống xoay quanh 5 luồng nghiệp vụ lớn cấu thành nên các k�
 ---
 
 ### 2.5.2 Mô hình Use-case
-Sơ đồ Use-case tổng thể đã được thiết kế chi tiết tại file [use-case-diagram.md](file:///g:/Project/travel-local-booking/docs/diagrams/use-case-diagram.md). Dưới đây là 3 bảng đặc tả Use-case (UC) chi tiết cho các chức năng cốt lõi nhất của hệ thống:
+Sơ đồ Use-case tổng thể đã được thiết kế chi tiết tại file [use-case-diagram.md](file:///g:/Project/travel-local-booking/docs/diagrams/use-case-diagram.md). Dưới đây là các bảng đặc tả Use-case (UC) chi tiết cho các chức năng cốt lõi nhất của hệ thống được xây dựng theo đúng tiêu chuẩn:
 
-#### Bảng đặc tả UC9: Đặt phòng homestay
-| Thành phần | Chi tiết đặc tả |
+#### Bảng 1: UC Đăng ký tài khoản mới
+| Thuộc tính | Chi tiết |
 |---|---|
-| **Tên Use Case** | Đặt phòng homestay |
-| **Tác nhân chính** | Khách hàng (USER) |
-| **Mục tiêu** | Đặt thành công một hoặc nhiều phòng tại homestay trong một khoảng thời gian xác định |
-| **Tiền điều kiện** | Khách hàng đã đăng nhập tài khoản hợp lệ |
-| **Luồng sự kiện chính** | 1. Khách hàng xem trang chi tiết homestay.<br/>2. Hệ thống hiển thị danh sách phòng trống kèm giá theo ngày.<br/>3. Khách hàng chọn phòng, số lượng phòng và ngày nhận/trả phòng.<br/>4. Hệ thống kiểm tra lịch trống và tính toán tổng tiền.<br/>5. Khách hàng nhập thông tin liên hệ và yêu cầu đặc biệt (nếu có).<br/>6. Khách hàng nhấn nút "Đặt phòng".<br/>7. Hệ thống tạo đơn đặt hàng mới với trạng thái `PENDING` (Chờ thanh toán) và chuyển hướng khách hàng tới màn hình thanh toán. |
-| **Luồng sự kiện phụ** | 3a. Khách hàng nhập mã giảm giá (coupon).<br/>&nbsp;&nbsp;&nbsp;&nbsp; 1. Hệ thống kiểm tra tính hợp lệ của mã.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 2. Hệ thống cập nhật giảm trừ tổng tiền hiển thị.<br/>7a. Phòng đã bị khách hàng khác đặt trước trong lúc chọn.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 1. Hệ thống thông báo phòng không khả dụng.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 2. Yêu cầu khách hàng chọn phòng hoặc ngày khác. |
-| **Hậu điều kiện** | Đơn đặt phòng được ghi nhận vào database với trạng thái phòng được giữ tạm thời trong 30 phút. |
+| **Mã UC** | UC-01 |
+| **Tên Use case** | Đăng ký tài khoản |
+| **Tác nhân (Actor)** | Khách hàng (Vãng lai) |
+| **Mô tả** | Người dùng truy cập hệ thống và tạo một tài khoản mới để đặt homestay và dịch vụ trải nghiệm. |
+| **Tiền điều kiện** | Người dùng chưa đăng nhập. |
+| **Luồng sự kiện chính** | 1. Người dùng chọn nút "Đăng ký" trên giao diện.<br/>2. Hệ thống hiển thị Form đăng ký (Tên, Email, Mật khẩu, Số điện thoại).<br/>3. Người dùng nhập thông tin và nhấn "Đăng ký".<br/>4. Hệ thống kiểm tra tính hợp lệ của dữ liệu đầu vào.<br/>5. Hệ thống gọi API gửi email xác thực, tạo bản ghi mới trong Database ở trạng thái chưa active và mã hóa mật khẩu.<br/>6. Hệ thống hiển thị thông báo thành công, yêu cầu người dùng kiểm tra email và chuyển hướng tới trang Đăng nhập. |
+| **Luồng ngoại lệ** | - (Luồng 4a): Nếu dữ liệu thiếu rỗng hoặc sai định dạng (VD: Email không đúng định dạng, mật khẩu ngắn hơn 6 ký tự), hệ thống hiển thị thông báo lỗi tại trường tương ứng.<br/>- (Luồng 5a): Nếu Email đã đăng ký trong hệ thống, hệ thống báo "Email đã được sử dụng". |
+| **Hậu điều kiện** | Bản ghi người dùng được thiết lập trong CSDL ở trạng thái chờ kích hoạt, gửi link xác thực thành công. |
 
-#### Bảng đặc tả UC10: Thanh toán qua SePay/VietQR
-| Thành phần | Chi tiết đặc tả |
+#### Bảng 2: UC Đặt phòng homestay
+| Thuộc tính | Chi tiết |
 |---|---|
-| **Tên Use Case** | Thanh toán VietQR tự động |
-| **Tác nhân chính** | Khách hàng (USER), Cổng thanh toán (SePay) |
-| **Mục tiêu** | Xác nhận thanh toán hóa đơn đặt phòng/tour tự động không cần duyệt thủ công |
-| **Tiền điều kiện** | Khách hàng có đơn đặt phòng ở trạng thái `PENDING` và sở hữu ứng dụng ngân hàng di động |
-| **Luồng sự kiện chính** | 1. Khách hàng chọn phương thức thanh toán chuyển khoản VietQR.<br/>2. Hệ thống hiển thị mã VietQR động chứa số tài khoản MBBank, số tiền và nội dung chuyển khoản duy nhất (ví dụ: `MT-N3SFWT`).<br/>3. Khách hàng quét mã QR trên ứng dụng ngân hàng và bấm xác nhận chuyển tiền.<br/>4. Ngân hàng MBBank ghi nhận biến động số dư và thông báo tới SePay.<br/>5. SePay gửi một request POST Webhook chứa thông tin giao dịch tới backend NestJS.<br/>6. Backend NestJS xác thực Webhook token, parse nội dung chuyển khoản lấy mã giao dịch.<br/>7. Backend cập nhật trạng thái đơn hàng thành `CONFIRMED` và cập nhật lịch phòng chính thức.<br/>8. Backend gửi tín hiệu WebSocket báo cho Frontend Next.js.<br/>9. Giao diện khách hàng tự động chuyển hướng sang trang `/success` (Đặt phòng thành công). |
-| **Luồng sự kiện phụ** | 5a. Quá 30 phút khách hàng không chuyển khoản.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 1. Hệ thống chạy background job tự động hủy đơn đặt phòng.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 2. Lịch phòng được giải phóng về trạng thái trống.<br/>6a. Webhook gửi đến không đúng định dạng hoặc sai signature token.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 1. Backend từ chối xử lý và ghi nhật ký lỗi (log error). |
-| **Hậu điều kiện** | Hóa đơn được chuyển trạng thái sang `PAID`, đơn đặt phòng chính thức được xác nhận. |
+| **Mã UC** | UC-09 |
+| **Tên Use case** | Đặt phòng homestay |
+| **Tác nhân (Actor)** | Khách hàng (Đã đăng nhập) |
+| **Mô tả** | Khách hàng thực hiện chọn homestay, chọn loại phòng cụ thể, điền thông tin và tiến hành đặt giữ chỗ tạm thời. |
+| **Tiền điều kiện** | Khách hàng đã đăng nhập tài khoản hợp lệ. |
+| **Luồng sự kiện chính** | 1. Khách hàng xem trang chi tiết một homestay.<br/>2. Hệ thống hiển thị danh sách các phòng còn trống kèm giá tương ứng cho khoảng ngày đã chọn.<br/>3. Khách hàng lựa chọn phòng, số lượng phòng muốn đặt và chọn ngày nhận/trả phòng.<br/>4. Hệ thống kiểm tra tính khả dụng của phòng và tính toán tổng tiền tạm tính.<br/>5. Khách hàng nhập thông tin người lưu trú chính, số điện thoại liên hệ và các yêu cầu đặc biệt.<br/>6. Khách hàng nhấn nút "Đặt phòng".<br/>7. Hệ thống tạo đơn đặt phòng mới trong cơ sở dữ liệu với trạng thái đơn là `PENDING` (Chờ thanh toán) và chuyển hướng khách sang trang thanh toán. |
+| **Luồng ngoại lệ** | - (Luồng 3a): Khách hàng áp dụng mã giảm giá (coupon). Hệ thống kiểm tra điều kiện coupon, nếu hợp lệ sẽ giảm trừ trực tiếp vào tổng tiền hiển thị.<br/>- (Luồng 4a): Phòng đã bị người dùng khác đặt mất trong lúc đang thực hiện thao tác. Hệ thống báo lỗi "Phòng đã được đặt hết cho khoảng ngày này, vui lòng chọn lại". |
+| **Hậu điều kiện** | Đơn đặt phòng `Booking` được tạo thành công với trạng thái `PENDING` và lịch phòng được tạm giữ trong vòng 30 phút. |
 
-#### Bảng đặc tả UC18: Nhắn tin realtime hỗ trợ dịch thuật tự động
-| Thành phần | Chi tiết đặc tả |
+#### Bảng 3: UC Thanh toán qua SePay/VietQR tự động
+| Thuộc tính | Chi tiết |
 |---|---|
-| **Tên Use Case** | Nhắn tin Realtime tích hợp dịch thuật |
-| **Tác nhân chính** | Khách hàng (USER), Chủ nhà (OWNER) |
-| **Mục tiêu** | Trao đổi thông tin trực tuyến và xóa bỏ rào cản ngôn ngữ vùng miền/quốc gia |
-| **Tiền điều kiện** | Cả hai bên đã đăng nhập và kết nối kết nối WebSocket tới hệ thống |
-| **Luồng sự kiện chính** | 1. Khách hàng mở hộp thoại chat với Chủ nhà.<br/>2. Khách hàng nhập tin nhắn bằng ngôn ngữ của mình (ví dụ: tiếng Anh) và nhấn gửi.<br/>3. Tin nhắn được truyền tải qua WebSocket đến server NestJS.<br/>4. Backend lưu tin nhắn gốc vào database và kiểm tra ngôn ngữ cài đặt ưu tiên của Chủ nhà (ví dụ: tiếng Việt).<br/>5. Nhận thấy có sự khác biệt ngôn ngữ, backend gọi Google Cloud Translate API để dịch nội dung tin nhắn.<br/>6. Backend cập nhật bản dịch vào cơ sở dữ liệu và gửi tin nhắn kèm nội dung dịch qua WebSocket tới Chủ nhà.<br/>7. Màn hình của Chủ nhà hiển thị tin nhắn gốc kèm theo dòng dịch nhỏ phía dưới thời gian thực. |
-| **Luồng sự kiện phụ** | 5a. Google Translate API gặp lỗi hoặc quá tải.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 1. Backend bỏ qua bước dịch thuật.<br/>&nbsp;&nbsp;&nbsp;&nbsp; 2. Gửi tin nhắn gốc đi như bình thường để không làm gián đoạn cuộc hội thoại. |
-| **Hậu điều kiện** | Tin nhắn được hiển thị tức thời cho cả hai bên kèm theo bản dịch tương ứng. |
+| **Mã UC** | UC-10 |
+| **Tên Use case** | Thanh toán VietQR tự động |
+| **Tác nhân (Actor)** | Khách hàng, Cổng thanh toán SePay |
+| **Mô tả** | Khách hàng thực hiện thanh toán cho đơn đặt phòng/tour thông qua mã QR chuyển khoản động và hệ thống tự động xác nhận nhờ Webhook. |
+| **Tiền điều kiện** | Khách hàng có đơn đặt phòng/tour ở trạng thái `PENDING` (Chờ thanh toán). |
+| **Luồng sự kiện chính** | 1. Hệ thống hiển thị màn hình thanh toán chứa mã VietQR động (chứa số tài khoản MBBank nhận tiền, số tiền chính xác và nội dung chuyển khoản duy nhất có định dạng `MT-XXXXXX`).<br/>2. Khách hàng mở ứng dụng Mobile Banking, quét mã QR và thực hiện xác nhận chuyển khoản.<br/>3. Hệ thống ngân hàng MBBank xử lý giao dịch nhận tiền thành công và đẩy thông báo biến động số dư tới SePay.<br/>4. Cổng thanh toán SePay gửi một HTTP POST request Webhook tới backend API `/payments/sepay/webhook`.<br/>5. Backend NestJS xác thực token webhook bảo mật, phân tích nội dung chuyển khoản để lấy mã đơn hàng.<br/>6. Backend cập nhật trạng thái đơn đặt hàng `status = CONFIRMED` và trạng thái thanh toán `paymentStatus = PAID`.<br/>7. Backend gửi tín hiệu WebSocket báo thanh toán thành công về trình duyệt của khách hàng.<br/>8. Trình duyệt nhận được tín hiệu WebSocket và tự động chuyển hướng khách hàng sang trang `/success` (Đặt phòng thành công). |
+| **Luồng ngoại lệ** | - (Luồng 1a): Khách hàng không thực hiện thanh toán trong vòng 30 phút. Hệ thống tự động hủy đơn (`CANCELLED`) và giải phóng phòng trống.<br/>- (Luồng 5a): Dữ liệu webhook bị lỗi, thiếu thông tin bảo mật webhook token. Backend từ chối xử lý cập nhật đơn đặt phòng. |
+| **Hậu điều kiện** | Đơn đặt phòng được xác nhận chính thức, hóa đơn chuyển trạng thái sang đã thanh toán. |
+
+#### Bảng 4: UC Nhắn tin realtime tích hợp dịch thuật tự động
+| Thuộc tính | Chi tiết |
+|---|---|
+| **Mã UC** | UC-18 |
+| **Tên Use case** | Nhắn tin realtime dịch tự động |
+| **Tác nhân (Actor)** | Khách hàng, Chủ nhà (Owner) |
+| **Mô tả** | Khách hàng và Chủ nhà giao tiếp qua khung chat trực tuyến, hệ thống tự động dịch tin nhắn sang ngôn ngữ yêu thích của mỗi bên. |
+| **Tiền điều kiện** | Cả hai bên đã đăng nhập hệ thống và đang truy cập màn hình Chat. |
+| **Luồng sự kiện chính** | 1. Người gửi (VD: Khách nước ngoài) chọn đối phương và nhập tin nhắn bằng ngôn ngữ của họ (VD: Tiếng Anh) rồi bấm gửi.<br/>2. Trình duyệt truyền tin nhắn qua cổng kết nối WebSocket (Socket.io) đến server backend.<br/>3. Backend lưu tin nhắn gốc vào database MySQL và kiểm tra ngôn ngữ ưu tiên của người nhận (VD: Chủ nhà Việt Nam là Tiếng Việt).<br/>4. Backend gọi dịch vụ Google Cloud Translate API dịch nội dung sang Tiếng Việt.<br/>5. Backend lưu bản dịch vào cơ sở dữ liệu, đồng thời phát tin nhắn qua WebSocket tới người nhận.<br/>6. Giao diện của người nhận hiển thị tin nhắn mới ngay lập tức kèm theo bản dịch tiếng Việt phía dưới. |
+| **Luồng ngoại lệ** | - (Luồng 4a): Gọi API dịch thuật Google bị lỗi/hết hạn ngạch. Hệ thống bỏ qua bước dịch và gửi tin nhắn gốc bình thường để đảm bảo tính thông suốt. |
+| **Hậu điều kiện** | Tin nhắn được hiển thị realtime cho cả hai bên cùng với bản dịch tương ứng. |
+
+#### Bảng 5: UC Đăng ký làm chủ homestay (Owner)
+| Thuộc tính | Chi tiết |
+|---|---|
+| **Mã UC** | UC-20 |
+| **Tên Use case** | Đăng ký làm Owner |
+| **Tác nhân (Actor)** | Khách hàng (USER) |
+| **Mô tả** | Người dùng gửi đơn đăng ký thông tin kinh doanh để trở thành đối tác cung cấp dịch vụ homestay/tour. |
+| **Tiền điều kiện** | Người dùng đã đăng nhập tài khoản khách hàng thông thường. |
+| **Luồng sự kiện chính** | 1. Người dùng chọn mục "Đăng ký làm chủ nhà" trên Dashboard cá nhân.<br/>2. Hệ thống hiển thị Form đăng ký đối tác (Tên doanh nghiệp, Người liên hệ, Điện thoại, Địa chỉ, Thành phố, Ghi chú/Hồ sơ năng lực).<br/>3. Người dùng nhập đầy đủ thông tin pháp lý/kinh doanh và bấm "Gửi đơn đăng ký".<br/>4. Hệ thống kiểm tra tính hợp lệ của dữ liệu đầu vào.<br/>5. Hệ thống lưu bản ghi đơn đăng ký mới trong bảng `OwnerApplication` với trạng thái `PENDING` (Chờ duyệt).<br/>6. Hệ thống hiển thị thông báo gửi đơn thành công và chờ phản hồi từ Ban quản trị. |
+| **Luồng ngoại lệ** | - (Luồng 4a): Thông tin nhập vào bị trống hoặc số điện thoại sai định dạng, hệ thống báo lỗi đỏ tại ô nhập liệu.<br/>- (Luồng 5a): Người dùng đã có một đơn đăng ký trước đó đang ở trạng thái `PENDING` hoặc đã là `OWNER`. Hệ thống từ chối tạo mới và thông báo đơn cũ đang được xử lý. |
+| **Hậu điều kiện** | Đơn đăng ký làm đối tác được lưu vào cơ sở dữ liệu ở trạng thái chờ duyệt. |
 
 ---
 

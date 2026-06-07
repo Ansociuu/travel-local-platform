@@ -2,10 +2,14 @@ import { Injectable, ForbiddenException, NotFoundException, ConflictException, B
 import { PrismaService } from '../prisma/prisma.service';
 import { HotelApprovalStatus, OwnerApplicationStatus, TourApprovalStatus, TourRegion, TourType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   private async assertAdmin(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -135,7 +139,7 @@ export class AdminService {
     const application = await this.prisma.ownerApplication.findUnique({ where: { id: applicationId } });
     if (!application) throw new NotFoundException('Hồ sơ đối tác không tồn tại');
 
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.ownerApplication.update({
         where: { id: applicationId },
         data: {
@@ -157,6 +161,18 @@ export class AdminService {
 
       return updated;
     });
+
+    this.notificationsService.create({
+      userId: application.userId,
+      type: status === 'APPROVED' ? 'OWNER_APPROVED' : 'OWNER_REJECTED',
+      title: status === 'APPROVED' ? 'Hồ sơ owner đã được duyệt' : 'Hồ sơ owner bị từ chối',
+      content: status === 'APPROVED'
+        ? 'Bạn đã trở thành chủ dịch vụ trên VietJourney.'
+        : (rejectionReason || 'Hồ sơ cần bổ sung thông tin trước khi duyệt.'),
+      link: status === 'APPROVED' ? '/owner' : '/dashboard',
+    }).catch((err) => console.error('[Notification] owner application failed:', err?.message));
+
+    return updated;
   }
 
   // ===================== BOOKINGS =====================
@@ -176,10 +192,28 @@ export class AdminService {
 
   async updateBookingStatus(userId: string, bookingId: string, status: string) {
     await this.assertAdmin(userId);
-    return this.prisma.booking.update({
+    const booking = await this.prisma.booking.update({
       where: { id: bookingId },
       data: { status: status as any },
     });
+
+    const type = status === 'CONFIRMED'
+      ? 'BOOKING_CONFIRMED'
+      : status === 'CANCELLED'
+        ? 'BOOKING_CANCELLED'
+        : status === 'COMPLETED'
+          ? 'BOOKING_COMPLETED'
+          : 'BOOKING_CONFIRMED';
+
+    this.notificationsService.create({
+      userId: booking.userId,
+      type,
+      title: 'Trạng thái booking đã cập nhật',
+      content: `Booking ${booking.shortId} hiện là ${status}.`,
+      link: '/dashboard',
+    }).catch((err) => console.error('[Notification] admin booking status failed:', err?.message));
+
+    return booking;
   }
 
   // ===================== USERS =====================
@@ -425,7 +459,7 @@ export class AdminService {
       throw new NotFoundException('Tour khÃ´ng tá»“n táº¡i');
     }
 
-    return this.prisma.tour.update({
+    const updated = await this.prisma.tour.update({
       where: { id: tourId },
       data: {
         approvalStatus: status as TourApprovalStatus,
@@ -439,6 +473,18 @@ export class AdminService {
         _count: { select: { bookings: true, reviews: true } },
       },
     });
+
+    this.notificationsService.create({
+      userId: tour.ownerId,
+      type: status === 'APPROVED' ? 'LISTING_APPROVED' : 'LISTING_REJECTED',
+      title: status === 'APPROVED' ? 'Tour đã được duyệt' : 'Tour bị từ chối',
+      content: status === 'APPROVED'
+        ? `${tour.name} đã được hiển thị công khai.`
+        : (note || `${tour.name} cần chỉnh sửa trước khi duyệt.`),
+      link: '/owner',
+    }).catch((err) => console.error('[Notification] tour approval failed:', err?.message));
+
+    return updated;
   }
 
   async deleteTour(userId: string, tourId: string) {
@@ -553,7 +599,7 @@ export class AdminService {
       throw new NotFoundException('Homestay không tồn tại');
     }
 
-    return this.prisma.hotel.update({
+    const updated = await this.prisma.hotel.update({
       where: { id: hotelId },
       data: {
         approvalStatus: status as HotelApprovalStatus,
@@ -566,6 +612,18 @@ export class AdminService {
         _count: { select: { bookings: true, reviews: true } },
       },
     });
+
+    this.notificationsService.create({
+      userId: hotel.ownerId,
+      type: status === 'APPROVED' ? 'LISTING_APPROVED' : 'LISTING_REJECTED',
+      title: status === 'APPROVED' ? 'Homestay đã được duyệt' : 'Homestay bị từ chối',
+      content: status === 'APPROVED'
+        ? `${hotel.name} đã được hiển thị công khai.`
+        : (note || `${hotel.name} cần chỉnh sửa trước khi duyệt.`),
+      link: '/owner',
+    }).catch((err) => console.error('[Notification] hotel approval failed:', err?.message));
+
+    return updated;
   }
 
   async deleteHotel(userId: string, hotelId: string) {

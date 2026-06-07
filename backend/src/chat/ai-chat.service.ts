@@ -22,11 +22,11 @@ export class AiChatService {
           id: this.BOT_ID,
           email: 'bot@vietjourney.vn',
           name: 'VietJourney Support Bot',
-          role: 'ADMIN', // Bot can be considered an admin/support staff
+          role: 'ADMIN',
           isVerified: true,
-          avatar: 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png', // Robot icon
+          avatar: 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png',
           password: 'no-password-needed',
-        }
+        },
       });
       this.logger.log('VietJourney AI Bot created in database.');
     }
@@ -37,9 +37,8 @@ export class AiChatService {
     try {
       const systemPrompt = {
         role: 'system',
-        content: `Bạn là trợ lý AI ảo của VietJourney - Nền tảng đặt phòng Homestay và Tour Du Lịch hàng đầu.
-Nhiệm vụ của bạn là hỗ trợ khách hàng trả lời các câu hỏi thường gặp, tư vấn tìm chỗ ở, tour du lịch một cách nhiệt tình, thân thiện và chuyên nghiệp.
-Hãy trả lời ngắn gọn, súc tích (1-3 câu), và sử dụng emoji cho sinh động.`,
+        content:
+          'Ban la tro ly AI cua VietJourney. Tra loi bang tieng Viet ngan gon, than thien, huu ich va uu tien tu van du lich Viet Nam.',
       };
 
       const chatCompletion = await this.groq.chat.completions.create({
@@ -49,54 +48,86 @@ Hãy trả lời ngắn gọn, súc tích (1-3 câu), và sử dụng emoji cho 
         max_tokens: 200,
       });
 
-      return chatCompletion.choices[0]?.message?.content || 'Xin lỗi, tôi không thể xử lý yêu cầu lúc này.';
+      return chatCompletion.choices[0]?.message?.content || 'Xin loi, toi khong the xu ly yeu cau luc nay.';
     } catch (error) {
       this.logger.error('Error getting quick AI reply', error);
-      return 'Xin lỗi, hệ thống AI đang gặp chút sự cố. Vui lòng liên hệ qua Zalo!';
+      return 'Xin loi, he thong AI dang gap su co. Vui long lien he nhan vien ho tro.';
     }
   }
 
   async getBotResponse(conversationId: string, userMessage: string): Promise<string> {
     try {
-      // 1. Fetch recent conversation history to give AI context
-      const messages = await this.prisma.message.findMany({
-        where: { conversationId },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      });
+      const [tours, hotels, messages] = await Promise.all([
+        this.prisma.tour.findMany({
+          where: { approvalStatus: 'APPROVED' as any },
+          include: { reviews: { select: { rating: true } } },
+          orderBy: { updatedAt: 'desc' },
+          take: 6,
+        }),
+        this.prisma.hotel.findMany({
+          where: { approvalStatus: 'APPROVED' as any },
+          include: {
+            rooms: { select: { basePrice: true }, orderBy: { basePrice: 'asc' }, take: 1 },
+            reviews: { select: { rating: true } },
+          },
+          orderBy: { rating: 'desc' },
+          take: 6,
+        }),
+        this.prisma.message.findMany({
+          where: { conversationId },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        }),
+      ]);
 
-      // Format for Groq (reverse to chronological order)
-      const chatHistory = messages.reverse().map(msg => ({
+      const avgRating = (reviews: { rating: number }[]) =>
+        reviews.length
+          ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+          : 'chua co';
+
+      const travelContext = [
+        'Du lieu VietJourney hien co:',
+        'Tours:',
+        ...tours.map(
+          (tour) =>
+            `- ${tour.name} | ${tour.location} | tu ${Number(tour.basePrice).toLocaleString('vi-VN')} VND | rating ${avgRating(tour.reviews)} | /tours/${tour.id}`,
+        ),
+        'Homestays:',
+        ...hotels.map(
+          (hotel) =>
+            `- ${hotel.name} | ${hotel.city} | tu ${Number(hotel.rooms?.[0]?.basePrice || 0).toLocaleString('vi-VN')} VND/dem | rating ${hotel.rating || avgRating(hotel.reviews)} | /homestays/${hotel.id}`,
+        ),
+      ].join('\n');
+
+      const chatHistory = messages.reverse().map((msg) => ({
         role: msg.senderId === this.BOT_ID ? 'assistant' : 'user',
         content: msg.content,
       }));
 
-      // Add the current message
       if (chatHistory.length === 0 || chatHistory[chatHistory.length - 1].content !== userMessage) {
-         chatHistory.push({ role: 'user', content: userMessage });
+        chatHistory.push({ role: 'user', content: userMessage });
       }
 
-      // System Prompt
       const systemPrompt = {
         role: 'system',
-        content: `Bạn là trợ lý AI ảo của VietJourney - Nền tảng đặt phòng Homestay và Tour Du Lịch hàng đầu.
-Nhiệm vụ của bạn là hỗ trợ khách hàng trả lời các câu hỏi thường gặp, tư vấn tìm chỗ ở, tour du lịch một cách nhiệt tình, thân thiện và chuyên nghiệp.
-Hãy trả lời ngắn gọn, súc tích, và sử dụng emoji cho sinh động.
-Nếu khách hàng hỏi về giá cả cụ thể hoặc tình trạng phòng theo ngày, hãy hướng dẫn họ sử dụng thanh tìm kiếm trên website vì bạn không truy cập được database trực tiếp ở phiên bản này.`
+        content: `Ban la tro ly du lich AI cua VietJourney. Tra loi bang tieng Viet tu nhien, ngan gon va huu ich.
+Khi khach hoi goi y tour/homestay, hay uu tien du lieu that ben duoi, neu phu hop thi dua link chi tiet.
+Neu khach hoi tinh trang phong/tour theo ngay cu the, hay de nghi mo trang chi tiet de kiem tra lich va dat cho.
+
+${travelContext}`,
       };
 
-      // Call Groq API
       const chatCompletion = await this.groq.chat.completions.create({
         messages: [systemPrompt, ...chatHistory] as any,
-        model: 'llama-3.3-70b-versatile', // Or 'mixtral-8x7b-32768'
+        model: 'llama-3.3-70b-versatile',
         temperature: 0.7,
         max_tokens: 500,
       });
 
-      return chatCompletion.choices[0]?.message?.content || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.';
+      return chatCompletion.choices[0]?.message?.content || 'Xin loi, toi khong the xu ly yeu cau cua ban luc nay.';
     } catch (error) {
       this.logger.error('Error getting AI response', error);
-      return 'Xin lỗi, hệ thống AI đang gặp chút sự cố. Vui lòng thử lại sau hoặc liên hệ nhân viên qua Zalo.';
+      return 'Xin loi, he thong AI dang gap su co. Vui long thu lai sau hoac lien he nhan vien ho tro.';
     }
   }
 }

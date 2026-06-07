@@ -96,6 +96,12 @@
   overflow-y: auto;
 }
 
+.adminTopActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
 .pageHeader {
   margin-bottom: 28px;
 }
