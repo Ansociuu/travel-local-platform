@@ -1,10 +1,14 @@
 import { Controller, Post, Body } from '@nestjs/common';
-import { IsString } from 'class-validator';
+import { IsString, IsArray, IsOptional } from 'class-validator';
 import { AiChatService } from './ai-chat.service';
 
 class QuickChatDto {
   @IsString()
   message: string;
+
+  @IsArray()
+  @IsOptional()
+  history?: any[];
 }
 
 @Controller('ai')
@@ -13,7 +17,7 @@ export class AiController {
 
   @Post('quick-chat')
   async quickChat(@Body() body: QuickChatDto) {
-    const reply = await this.aiChatService.getQuickReply(body.message || '');
+    const reply = await this.aiChatService.getQuickReply(body.message || '', body.history || []);
     return { reply };
   }
 }

@@ -8,25 +8,31 @@ const ThemeContext = createContext({
 });
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "light";
-    return localStorage.getItem("vj-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  });
+  const [theme, setTheme] = useState("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("vj-theme", theme);
-  }, [theme]);
+    const localTheme = localStorage.getItem("vj-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    setTheme(localTheme);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("vj-theme", theme);
+    }
+  }, [theme, mounted]);
 
   const value = useMemo(() => ({
-    theme,
+    theme: mounted ? theme : "light",
     toggleTheme: () => {
       setTheme((current) => {
         const next = current === "dark" ? "light" : "dark";
         return next;
       });
     },
-  }), [theme]);
+  }), [theme, mounted]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

@@ -50,13 +50,22 @@ export default function FloatingContactWidget() {
     const text = input.trim();
     if (!text) return;
     setInput("");
+
+    const historyPayload = messages.map((m) => ({
+      role: m.from === "user" ? "user" : "assistant",
+      content: m.text,
+    }));
+
     setMessages((p) => [...p, { from: "user", text }]);
     setTyping(true);
 
     try {
       const data = await apiRequest("/ai/quick-chat", {
         method: "POST",
-        body: { message: text },
+        body: {
+          message: text,
+          history: historyPayload,
+        },
       });
       setMessages((p) => [...p, { from: "bot", text: data.reply || "Xin lỗi, tôi chưa hiểu câu hỏi này 🙏" }]);
     } catch {

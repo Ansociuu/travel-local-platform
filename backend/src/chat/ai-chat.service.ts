@@ -33,19 +33,69 @@ export class AiChatService {
     return this.BOT_ID;
   }
 
-  async getQuickReply(userMessage: string): Promise<string> {
+  async getQuickReply(userMessage: string, history: any[] = []): Promise<string> {
     try {
+      const [tours, hotels] = await Promise.all([
+        this.prisma.tour.findMany({
+          where: { approvalStatus: 'APPROVED' as any },
+          include: { reviews: { select: { rating: true } } },
+          orderBy: { updatedAt: 'desc' },
+          take: 6,
+        }),
+        this.prisma.hotel.findMany({
+          where: { approvalStatus: 'APPROVED' as any },
+          include: {
+            rooms: { select: { basePrice: true }, orderBy: { basePrice: 'asc' }, take: 1 },
+            reviews: { select: { rating: true } },
+          },
+          orderBy: { rating: 'desc' },
+          take: 6,
+        }),
+      ]);
+
+      const avgRating = (reviews: { rating: number }[]) =>
+        reviews.length
+          ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+          : 'chua co';
+
+      const travelContext = [
+        'Du lieu VietJourney hien co:',
+        'Tours:',
+        ...tours.map(
+          (tour) =>
+            `- ${tour.name} | ${tour.location} | tu ${Number(tour.basePrice).toLocaleString('vi-VN')} VND | rating ${avgRating(tour.reviews)} | /tours/${tour.id}`,
+        ),
+        'Homestays:',
+        ...hotels.map(
+          (hotel) =>
+            `- ${hotel.name} | ${hotel.city} | tu ${Number(hotel.rooms?.[0]?.basePrice || 0).toLocaleString('vi-VN')} VND/dem | rating ${hotel.rating || avgRating(hotel.reviews)} | /homestays/${hotel.id}`,
+        ),
+      ].join('\n');
+
       const systemPrompt = {
         role: 'system',
-        content:
-          'Ban la tro ly AI cua VietJourney. Tra loi bang tieng Viet ngan gon, than thien, huu ich va uu tien tu van du lich Viet Nam.',
+        content: `Ban la tro ly du lich AI cua VietJourney. Tra loi bang tieng Viet tu nhien, ngan gon va huu ich.
+Khi khach hoi goi y tour/homestay, hay uu tien du lieu that ben duoi, neu phu hop thi dua link chi tiet.
+Neu khach hoi tinh trang phong/tour theo ngay cu the, hay de nghi mo trang chi tiet de kiem tra lich va dat cho.
+
+${travelContext}`,
       };
 
+      const messages = [systemPrompt];
+      if (history && Array.isArray(history)) {
+        const cleanedHistory = history
+          .filter((h) => h && h.role && h.content)
+          .slice(-10);
+        messages.push(...cleanedHistory);
+      }
+
+      messages.push({ role: 'user', content: userMessage });
+
       const chatCompletion = await this.groq.chat.completions.create({
-        messages: [systemPrompt, { role: 'user', content: userMessage }] as any,
+        messages: messages as any,
         model: 'llama-3.3-70b-versatile',
         temperature: 0.7,
-        max_tokens: 200,
+        max_tokens: 500,
       });
 
       return chatCompletion.choices[0]?.message?.content || 'Xin loi, toi khong the xu ly yeu cau luc nay.';

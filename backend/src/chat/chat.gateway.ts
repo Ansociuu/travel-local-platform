@@ -32,12 +32,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private aiChatService: AiChatService,
     private notificationsService: NotificationsService,
     private realtimeService: RealtimeService,
-  ) {
-    // Ensure the bot user exists in DB on startup
-    setTimeout(() => {
-      this.aiChatService.ensureBotUserExists().catch(console.error);
-    }, 5000);
-  }
+  ) {}
 
   async handleConnection(client: Socket) {
     try {
@@ -140,37 +135,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         lastAt: message.createdAt,
       });
 
-      // === AI Bot Trigger ===
-      const participants = await this.chatService.getConversationParticipants(data.conversationId);
-      if (participants.includes('vietjourney-ai-bot') && userId !== 'vietjourney-ai-bot') {
-        // Run AI response asynchronously so we don't block the gateway
-        this.aiChatService.getBotResponse(data.conversationId, data.content).then(async (aiReplyContent) => {
-          const botMessage = await this.chatService.createMessage(
-            data.conversationId,
-            'vietjourney-ai-bot',
-            aiReplyContent,
-            'TEXT'
-          );
-          
-          const botSender = await this.chatService.getUserInfo('vietjourney-ai-bot');
-          const botPayload = { ...botMessage, sender: botSender };
-          
-          this.server.to(`conv:${data.conversationId}`).emit('newMessage', botPayload);
-          
-          participants.forEach((uid) => {
-            this.server.to(`user:${uid}`).emit('newMessage', botPayload);
-            const socketId = this.onlineUsers.get(uid);
-            if (socketId) this.server.to(socketId).emit('newMessage', botPayload);
-          });
-          
-          this.server.emit('conversationUpdated', {
-            conversationId: data.conversationId,
-            lastMessage: aiReplyContent,
-            lastAt: botMessage.createdAt,
-          });
-        }).catch(err => console.error('[AI Bot] Failed to generate response:', err));
-      }
-      // ======================
+      // AI Bot Trigger removed
 
       // Async translation — does NOT block the message being sent
       this.chatService.translateMessageAsync(message.id).then((updatedMessage) => {
